@@ -1,0 +1,72 @@
+---
+title: "finding features, different thresholds"
+output: html_notebook
+autohr: "chandler"
+time: "`r Sys.time()`"
+---
+
+
+```{r}
+library(dplyr)
+
+df <- read.csv("~/proj_ua/data/df_sub2.csv") %>%
+  mutate(
+    group = ifelse((prob>5.9&true==1)|(prob<=5.9&true==0), 1, 0)
+  )
+glimpse(df)
+summary(df)
+table(df$group)
+
+df_lr <- df %>%
+  select(-c(prob)) %>%
+  select(c(
+    group, 
+    'male', 
+    'he_usg', 
+    'he_uph', 
+    'he_ubld', 
+    'he_uglu', 
+    'he_upro', 
+    'age'))
+summary(df_lr)
+
+df_raw <- read.csv("~/proj_ua/data/df_sub2_raw.csv") %>%
+  mutate(
+    true = eGFR_ab
+    ) %>%
+  mutate(
+    group = ifelse((prob>5.9&true==1)|(prob<=5.9&true==0), 1, 0)
+  )
+glimpse(df_raw)
+
+df_ar <- df_raw %>%
+  mutate(
+    male = as.character(male),
+    he_upro_c = as.character(he_upro)
+  )
+
+```
+
+```{r, logistic regression }
+glm <- glm(group ~., family=binomial, data=df_lr)
+summary(glm)
+
+library(gtsummary)
+tbl_regression(glm, exponentiate = TRUE)
+```
+
+
+```{r, arsenal}
+library(arsenal)
+library(knitr)
+
+stat_tbl1 <- tableby(group ~ male + age + he_usg + he_uph + he_ubld + he_upro + he_uglu, data=df_ar, total=FALSE)
+summary(stat_tbl1, text=TRUE)
+kable(summary(stat_tbl1))
+```
+
+```{r, kwt}
+stat_tbl2 <- tableby(group ~ he_upro + he_uglu + he_ubld, data=df_ar, total=F, numeric.stats=c("medianrange","q1q3"), numeric.test="kwt")
+summary(stat_tbl2, test=T)
+```
+

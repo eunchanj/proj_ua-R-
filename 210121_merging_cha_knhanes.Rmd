@@ -1,0 +1,184 @@
+#merge dataset cha + knhanes
+##210122
+
+#load dataset
+```{r}
+library(dplyr)
+
+kn <- read.csv("~/KNHANES_eGFR/data/eGFR_urine_reg.v1.csv", fileEncoding = "utf-8")
+cha <- read.csv("~/KNHANES_eGFR/data/cha_ua_dataset_v2.csv", fileEncoding = "utf-8")
+
+glimpse(kn)
+glimpse(cha)
+```
+
+#shynchronization of colname
+```{r}
+cha_colname <- cha %>%
+  filter(age>0) %>%
+  rename(
+    "id" = patient_id,
+    "he_uph" = ph,
+    "he_unitr" = nitrite,
+    "he_usg" = sg,
+    "he_upro" = protein,
+    "he_uglu" = glucose,
+    "he_uket" = ketone,
+    "he_ubil" = bilirubin,
+    "he_ubld" = blood,
+    "he_uro" = urobilinogen
+  ) %>%
+  select(id, male, age, eGFR_ab, eGFR_ckd, 
+         he_uph, he_unitr, he_usg, he_upro, he_uglu, he_uket, he_ubil, he_ubld, he_uro) 
+
+glimpse(cha_colname)
+summary(cha_colname)
+```
+
+#checking and encoding each variable
+```{r}
+#knhanes
+for(i in 6:16) {
+  print(colnames(kn[i]))
+  print(table(kn[,i]))
+}
+```
+
+```{r}
+#cha
+for(i in 2:14) {
+  print(colnames(cha_colname[i]))
+  print(table(cha_colname[,i]))
+}
+```
+
+#encoding specific gravity
+```{R}
+kn_en <- kn %>%
+  mutate(
+    he_usg = ifelse(he_usg<=1.007, 1.005, 
+                    ifelse(he_usg>=1.008 & he_usg<=1.012, 1.010,
+                           ifelse(he_usg>=1.013 & he_usg<=1.017, 1.015,
+                                  ifelse(he_usg>=1.018 & he_usg<=1.022, 1.020,
+                                         ifelse(he_usg>=1.023 & he_usg<=1.027, 1.025, 1.030)))))
+  )
+
+table(kn_en$he_usg)
+glimpse(kn_en)
+```
+
+#merging dataset using rbind
+```{r}
+df <- rbind(cha_colname, kn_en[,-c(2:4)])
+df_arr <- df[,c(1,4,5,2,3,6:14)] %>%
+  mutate(
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  )
+
+glimpse(df_arr)
+table(df_arr$eGFR_ab)
+
+#write.csv(df_arr, "~/proj_ua/data/ua_full.v1.csv", fileEncoding = "utf-8", row.names = F)
+```
+
+#summary table
+```{r}
+library(qwraps2)
+
+#https://cran.r-project.org/web/packages/qwraps2/vignettes/summary-statistics.html
+
+ua_summary <- 
+  list("Age" = 
+         list("min"       = ~ min(age),
+              "max"       = ~ max(age),
+              "mean (sd)" = ~ qwraps2::mean_sd(age)),
+       "Sex" =
+         list("Male"    = ~ qwraps2::n_perc0(male == 1),
+              "Female"  = ~ qwraps2::n_perc0(male == 0)),
+       "Urine pH" =
+         list("min"       = ~ min(he_uph),
+              "max"       = ~ max(he_uph),
+              "mean (sd)" = ~ qwraps2::mean_sd(he_uph)),
+       "Urine specific gravity" =
+         list("min"       = ~ min(he_usg),
+              "max"       = ~ max(he_usg),
+              "mean (sd)" = ~ qwraps2::mean_sd(he_usg)),
+       "Urine nitrite" =
+         list("0" = ~ qwraps2::n_perc0(he_unitr == 0),
+              "1" = ~ qwraps2::n_perc0(he_unitr == 1)),
+       "Urine protein (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_upro == 0),
+              "1" = ~ qwraps2::n_perc0(he_upro == 1),
+              "2" = ~ qwraps2::n_perc0(he_upro == 2),
+              "3" = ~ qwraps2::n_perc0(he_upro == 3),
+              "4" = ~ qwraps2::n_perc0(he_upro == 4),
+              "5" = ~ qwraps2::n_perc0(he_upro == 5)),
+       "Urine glucose (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_uglu == 0),
+              "1" = ~ qwraps2::n_perc0(he_uglu == 1),
+              "2" = ~ qwraps2::n_perc0(he_uglu == 2),
+              "3" = ~ qwraps2::n_perc0(he_uglu == 3),
+              "4" = ~ qwraps2::n_perc0(he_uglu == 4),
+              "5" = ~ qwraps2::n_perc0(he_uglu == 5)),
+       "Urine ketone (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_uket == 0),
+              "1" = ~ qwraps2::n_perc0(he_uket == 1),
+              "2" = ~ qwraps2::n_perc0(he_uket == 2),
+              "3" = ~ qwraps2::n_perc0(he_uket == 3),
+              "4" = ~ qwraps2::n_perc0(he_uket == 4),
+              "5" = ~ qwraps2::n_perc0(he_uket == 5)),
+       "Urine Bilirubin (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_ubil == 0),
+              "1" = ~ qwraps2::n_perc0(he_ubil == 1),
+              "2" = ~ qwraps2::n_perc0(he_ubil == 2),
+              "3" = ~ qwraps2::n_perc0(he_ubil == 3),
+              "4" = ~ qwraps2::n_perc0(he_ubil == 4),
+              "5" = ~ qwraps2::n_perc0(he_ubil == 5)),
+       "Urine blood (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_ubld == 0),
+              "1" = ~ qwraps2::n_perc0(he_ubld == 1),
+              "2" = ~ qwraps2::n_perc0(he_ubld == 2),
+              "3" = ~ qwraps2::n_perc0(he_ubld == 3),
+              "4" = ~ qwraps2::n_perc0(he_ubld == 4),
+              "5" = ~ qwraps2::n_perc0(he_ubld == 5)),
+       "Urobilinogen (0-5)" =
+         list("0" = ~ qwraps2::n_perc0(he_uro == 0),
+              "1" = ~ qwraps2::n_perc0(he_uro == 1),
+              "2" = ~ qwraps2::n_perc0(he_uro == 2),
+              "3" = ~ qwraps2::n_perc0(he_uro == 3),
+              "4" = ~ qwraps2::n_perc0(he_uro == 4),
+              "5" = ~ qwraps2::n_perc0(he_uro == 5))
+       )
+
+t1 <- summary_table(kn, summaries = ua_summary)
+t1
+
+ua_summary
+```
+
+#summary table
+##210125
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+library(stringr)
+
+df_summary <- df_arr %>%
+  mutate(
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  )
+
+glimpse(df_summary)
+
+stat_tbl <- tableby(from~ . ,data=df_summary[,-1])
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```

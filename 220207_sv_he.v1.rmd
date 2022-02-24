@@ -1,0 +1,85 @@
+---
+title: "SEVERANCE HE raw"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()`"
+---
+
+
+```{r}
+sv_raw <- read_xlsx("~/proj_ua/data/new_raw_he_sv.xlsx")
+
+```
+
+```{r}
+sv_sel <- sv_raw[,c(3,7,8,13,14,15,16,17,20)]
+colnames(sv_sel) <- c("p_id", "sex", "age", "cr", "he_usg", "he_uph", "he_upro", "he_uglu", "he_ubld")
+sv_dup <- sv_sel[!duplicated(sv_sel$p_id),]
+sv_dup[sv_dup=='NA'] <- NA
+
+sv_comp <- sv_dup[complete.cases(sv_dup), ]
+
+sv_comp2 <- sv_comp %>%
+    mutate(
+    ##
+    he_uglu = ifelse(he_uglu=="Negative" | he_uglu=="-",0,
+                     ifelse(he_uglu=="Trace" | he_uglu=="+/-"| he_uglu=="-/+",1,
+                            ifelse(he_uglu=="1+"| he_uglu=="+",2,
+                                   ifelse(he_uglu=="2+",3,
+                                          ifelse(he_uglu=="3+",4,5))))),
+    ##
+    he_upro = ifelse(he_upro=="Negative" | he_upro=="-",0,
+                     ifelse(he_upro=="Trace" | he_upro=="+/-"| he_upro=="-/+"| he_upro=="-+",1,
+                            ifelse(he_upro=="1+"| he_upro=="+",2,
+                                   ifelse(he_upro=="2+",3,
+                                          ifelse(he_upro=="3+",4,5))))),
+
+    ##
+    he_ubld = ifelse(he_ubld=="Negative" | he_ubld=="-",0,
+                     ifelse(he_ubld=="Trace" | he_ubld=="TRACE" | he_ubld=="+/-",1,
+                            ifelse(he_ubld=="1+" | he_ubld=="1" | he_ubld=="+",2,
+                                   ifelse(he_ubld=="2+",3,
+                                          ifelse(he_ubld=="3+",4,5))))),
+    ##
+    he_uph = as.numeric(he_uph),
+    ##
+    he_usg = ifelse(he_usg=="<=1.005" | he_usg=="1.0049999999999799", 1.005,
+                    ifelse(he_usg==">=1.030" | he_usg==">1.030" | he_usg=="1.03", 1.030,
+                           ifelse(he_usg=="1.01", 1.010, 
+                                  ifelse(he_usg=="1.0149999999999799", 1.015,
+                                         ifelse(he_usg=="1.02", 1.020, 1.025))))),
+
+  )
+
+sv_fil <- sv_comp2 %>%
+  filter(age>=18) %>%
+  mutate(
+    male = ifelse(sex=="M",1,0),
+    age = as.numeric(age),
+    cr = as.numeric(cr),
+    he_uph = as.numeric(he_uph),
+    he_usg = as.numeric(he_usg),
+    eGFR_ckd = ifelse(
+      male == 1, 
+      ifelse(cr <= 0.9, 141*((cr/0.9)^-0.411)*0.993^age, 141*((cr/0.9)^-1.209)*0.993^age), 
+      ifelse(cr <=0.7, 144*((cr/0.7)^-0.329)*0.993^age, 144*((cr/0.7)^-1.209)*0.993^age)
+                      ),
+    eGFR_ab = ifelse(eGFR_ckd<60,1,0)
+  ) %>%
+  select(-c(sex, cr)) %>%
+  unique() 
+
+glimpse(sv_fil)
+```
+
+```{r}
+for(i in 2:10) {
+  print(colnames(sv_fil[i]))
+  print(table(sv_fil[,i], exclude = F))
+}
+```
+
+```{r, save as csv}
+#write.csv(sv_fil, "~/proj_ua/data/sv_he.v1.csv")
+```
+

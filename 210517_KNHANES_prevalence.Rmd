@@ -1,0 +1,155 @@
+---
+title: "KNHANES prevalence"
+output: html_notebook
+autohr: "chandler"
+time: "`r Sys.time()`"
+---
+
+```{r load dataset}
+library(dplyr)
+
+kn <- read.csv("~/proj_ua/data/kn_ua_svy.csv", fileEncoding = "utf-8") %>%
+  filter(age>=18 & age<80) %>%
+  mutate(
+    p = 1,
+    level = ifelse(he_upro<2,0,1)
+  )
+glimpse(kn)
+```
+
+```{r survey library}
+library(survey)
+kn_svy <- svydesign(data = kn, id = ~psu+id_fam, strata = ~kstrata, weights = ~wt_12y)
+
+kn_svy_sb <- kn_svy %>%
+  subset(!is.na(he_crea)) %>%
+  subset(!is.na(eGFR_ckd)) %>%
+  subset(!is.na(level)) %>%
+  subset(!is.na(he_uph)) %>%
+  subset(!is.na(he_unitr)) %>%
+  subset(!is.na(he_usg)) %>%
+  subset(!is.na(he_upro)) %>%
+  subset(!is.na(he_uglu)) %>%
+  subset(!is.na(he_uket)) %>%
+  subset(!is.na(he_ubil)) %>%
+  subset(!is.na(he_ubld)) %>%
+  subset(!is.na(he_uro))
+```
+
+```{r all prevalence}
+#prevalence <60 , <45
+total <- svyby(formula = ~p, by = ~level, design= kn_svy_sb, FUN = svytotal, na.rm = TRUE)
+
+pre60 <- svytotal(~eGFR_ab, kn_svy_sb, na.rm=TRUE)[[1]] / (total[1,2] + total[2,2])*100
+pre60_mean <- svymean(~eGFR_ab, kn_svy_sb, na.rm=T)[[1]]*100
+
+pre45 <- svytotal(~eGFR_ab45, kn_svy_sb, na.rm=TRUE)[[1]] / (total[1,2] + total[2,2])*100
+pre45_mean <- svymean(~eGFR_ab45, kn_svy_sb, na.rm=T)[[1]]*100
+
+print("total all prevalence of 60 =");pre60
+print("mean all prevalence of 60 =");pre60_mean
+print("total all prevalence of 45 =");pre45
+print("mean method all prevalence of 45 =");pre45_mean
+```
+```{r non-proteinuria, proteinuria prevalence}
+#prevalence <60 , <45
+pv <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy_sb, FUN = svytotal, na.rm = TRUE)
+pv_mean <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy_sb, FUN = svymean, na.rm = TRUE)
+
+pre60_non <- pv[1,2] / total[1,2] * 100
+pre60_non_mean <- pv_mean[1,2] *100
+pre60_pro <- pv[2,2] / total[2,2] * 100
+pre60_pro_mean <- pv_mean[2,2] *100
+
+print("total non-proteinuria prevalence of 60 =");pre60_non
+print("mean non-proteinuria prevalence of 60 =");pre60_non_mean
+print("total proteinuria prevalence of 60 =");pre60_pro
+print("mean proteinuria prevalence of 60 =");pre60_pro_mean
+
+pre45_non <- pv[1,3] / total[1,2] * 100
+pre45_non_mean <- pv_mean[1,3] *100
+pre45_pro <- pv[2,3] / total[2,2] * 100
+pre45_pro_mean <- pv_mean[2,3] *100
+
+print("total non-proteinuria prevalence of 45 =");pre45_non
+print("mean non-proteinuria prevalence of 45 =");pre45_non_mean
+print("total proteinuria prevalence of 45 =");pre45_pro
+print("mean proteinuria prevalence of 45 =");pre45_pro_mean
+```
+
+```{r}
+n <- c(total[1,2], total[2,2], total[1,2]+total[2,2])
+total_60 <- c(pre60_non, pre60_pro, pre60)
+total_45 <- c(pre45_non, pre45_pro, pre45)
+mean_60 <- c(pre60_non_mean, pre60_pro_mean, pre60_mean)
+mean_45 <- c(pre45_non_mean, pre45_pro_mean, pre45_mean)
+
+df_pre <- data_frame(n, total_60, mean_60, total_45, mean_45) %>%
+  mutate(
+    nt60 = n * (total_60/100),
+    nm60 = n * (mean_60/100),
+    nt45 = n * (total_45/100),
+    nm45 = n * (mean_45/100),
+  )
+
+df_pre
+```
+
+```{r demographic table}
+library(jtools)
+
+print("KNHANES estimated")
+
+#total
+eKN_total <- svytotal(~p, kn_svy_sb)[[1]]
+
+#age
+print("age");svymean(~age, kn_svy_sb);svysd(~age, kn_svy_sb)
+
+#sex
+print("sex");svyby(formula = ~p, by=~sex, FUN=svytotal, kn_svy_sb)
+table(kn_svy_sb$variables$sex)
+
+#eGFR
+print("eGFR mean");svymean(~eGFR_ckd, kn_svy_sb);svysd(~eGFR_ckd, kn_svy_sb)
+print("eGFR 60");svyby(formula=~p, by=~eGFR_ab, FUN=svytotal, kn_svy_sb)[2,2];svyby(formula=~p, by=~eGFR_ab, FUN=svytotal, kn_svy_sb)[2,2]/eKN_total
+print("eGFR 45");svyby(formula=~p, by=~eGFR_ab45, FUN=svytotal, kn_svy_sb)[2,2];svyby(formula=~p, by=~eGFR_ab45, FUN=svytotal, kn_svy_sb)[2,2]/eKN_total
+
+#proteinuria
+print("proteinuria");svyby(formula=~p, by=~level, FUN=svytotal, kn_svy_sb)[2,2];svyby(formula=~p, by=~level, FUN=svytotal, kn_svy_sb)[2,2]/eKN_total
+
+#CKD
+eKN_ckd <- svyby(formula=~p, by=~level+eGFR_ab, FUN=svytotal, kn_svy_sb)
+eKN_ckd[2:4,3]
+print("CKD");sum(eKN_ckd[2:4,3]);sum(eKN_ckd[2:4,3])/eKN_total
+print("Non-proteinuria");eKN_ckd[3,3];eKN_ckd[3,3]/eKN_total
+print("isolated proteinuria");eKN_ckd[2,3];eKN_ckd[2,3]/eKN_total
+print("proteinuria");eKN_ckd[4,3];eKN_ckd[4,3]/eKN_total
+
+#sg
+print("specific gravity");svymean(~he_usg, kn_svy_sb);svysd(~he_usg, kn_svy_sb)
+
+#ph
+print("pH");svymean(~he_uph, kn_svy_sb);svysd(~he_uph, kn_svy_sb)
+
+#blood
+print("blood");svyquantile(~he_ubld, kn_svy_sb, c(.25,.5,.75))
+
+#protein
+print("protein");svyquantile(~he_upro, kn_svy_sb, c(.25,.5,.75))
+
+#glucose
+print("glucose");svyquantile(~he_uglu, kn_svy_sb, c(.25,.5,.75))
+
+#ketone
+print("ketone");svyquantile(~he_uket, kn_svy_sb, c(.25,.5,.75))
+
+#bilirubin
+print("bilirubin");svyquantile(~he_ubil, kn_svy_sb, c(.25,.5,.75))
+
+#urobilinogen
+print("urobilinogen");svyquantile(~he_uro, kn_svy_sb, c(.25,.5,.75))
+
+#nitrite
+print("nitrite");svyby(formula=~p, by=~he_unitr, FUN=svytotal, kn_svy_sb)[2,2];svyby(formula=~p, by=~he_unitr, FUN=svytotal, kn_svy_sb)[2,2]/eKN_total
+```

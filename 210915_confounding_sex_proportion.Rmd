@@ -1,0 +1,94 @@
+---
+title: "proteinuria and hematuria confounding, sex proportion check"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+check for paper
+
+```{r, 60model}
+df <- read.csv("~/proj_ua/data/df_logistic_cha_new.v2.csv")
+glimpse(df)
+
+df_glm_non <- df %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+df_glm_pro <- df %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+glimpse(df_glm_non)
+glimpse(df_glm_pro)
+```
+
+```{r glm 60, proteinuria and hematuria confounding test}
+glm_pro <- glm(eGFR_ab ~he_ubld + he_upro, family=binomial, data=df_glm_pro)
+summary(glm_pro)
+
+library(gtsummary)
+tbl_regression(glm_pro, exponentiate = TRUE)
+```
+
+```{r, 45model}
+df45 <- read.csv("~/proj_ua/data/df_logistic_cha45_new.v2.csv")
+glimpse(df45)
+
+df45_non <- df45 %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level))%>%
+  select(c(eGFR_ab45, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+
+df45_pro <- df45 %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level))%>%
+  select(c(eGFR_ab45, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+glimpse(df45_non)
+glimpse(df45_pro)
+```
+
+```{r glm 45, proteinuria and hematuria confounding test}
+glm45_pro <- glm(eGFR_ab45 ~he_ubld+he_upro, family=binomial, data=df45_pro)
+summary(glm45_pro)
+
+tbl_regression(glm45_pro, exponentiate = TRUE)
+```
+```{r 60 sex proportion}
+library(arsenal)
+library(knitr)
+
+df_non <- df %>%
+  filter(he_upro<2)
+
+glimpse(df_non)
+
+df_sex_pp <- df_non %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+#    proteinuria = as.character(proteinuria),
+#    ckd = as.character(ckd),
+#    np_ckd = as.character(np_ckd),
+#    is_ckd = as.character(is_ckd),
+#    p_ckd = as.character(p_ckd)
+#    he_upro = as.character(he_upro),
+#    he_uglu = as.character(he_uglu),
+#    he_uket = as.character(he_uket),
+#    he_ubil = as.character(he_ubil),
+#    he_ubld = as.character(he_ubld),
+#    he_uro = as.character(he_uro),
+#    leucocyte = as.character(leucocyte),
+  )
+
+
+## statistic test
+stat_t <- tableby(eGFR_ab~ male , data=df_sex_pp, total=FALSE)
+summary(stat_t, text=TRUE)
+kable(summary(stat_t))
+```

@@ -1,0 +1,120 @@
+---
+title: "make demographic table"
+output: html_notebook
+---
+#summary table 60model / kmeans
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(dplyr)
+library(arsenal)
+library(knitr)
+
+cha_kn <-read.csv("~/proj_ua/data/ua_full_10types_new.v5.csv", fileEncoding = 'utf-8')
+ys <- read.csv("~/proj_ua/data/ev_ys.csv", fileEncoding = "utf-8")
+
+glimpse(cha_kn)
+glimpse(ys)
+```
+```{r merge dataset}
+cha_kn2 <- cha_kn %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  )
+
+ys2 <- ys %>%
+  mutate(
+    from = "ys"
+  )
+glimpse(cha_kn2)
+glimpse(ys2)
+
+df <- rbind(cha_kn2, ys2)
+glimpse(df)
+```
+```{r}
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+#    he_upro = as.character(he_upro),
+#    he_uglu = as.character(he_uglu),
+#    he_uket = as.character(he_uket),
+#    he_ubil = as.character(he_ubil),
+#    he_ubld = as.character(he_ubld),
+#    he_uro = as.character(he_uro),
+#    leucocyte = as.character(leucocyte),
+  ) %>%
+  filter(age>=18) %>%
+  select(-c(id))
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary)
+```
+```{r test}
+
+hist(df$he_usg[df$from=="cha"], breaks = 6)
+hist(df$he_usg[df$from=="knhanes"], breaks = 6)
+hist(df$he_usg[df$from=="ys"], breaks = 6)
+
+stat_tbl1 <- tableby(from ~ he_usg ,data=df_summary, total=FALSE, numeric.test="kwt")
+summary(stat_tbl1, text=TRUE)
+
+
+kruskal.test(he_usg ~ from, data=df)
+summary(aov(he_usg ~ from, data=df))
+
+table(df$he_usg)
+table(df$he_uph)
+
+mean(df$he_usg[df$from=="ys"])
+```
+
+
+```{r stat_tbl1}
+stat_tbl1 <- tableby(from~ age + male + eGFR_ab + eGFR_ab45 + eGFR_ckd + he_unitr + he_usg ,data=df_summary, total=FALSE)
+summary(stat_tbl1, text=TRUE)
+kable(summary(stat_tbl1))
+```
+
+```{r stat_tbl2}
+stat_tbl2 <- tableby(from~ he_uph + he_upro + he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, data=df_summary, total=F, numeric.stats=c("medianrange","q1q3"), numeric.test="kwt")
+summary(stat_tbl2, test=T)
+
+#leucocyte test
+wilcox.test(df$leucocyte[df$from=="cha"], df$leucocyte[df$from=="ys"])
+
+library(ggplot2)
+ggplot(df, aes(leucocyte, fill=from)) +
+  geom_histogram(alpha=0.5, aes(y=..density..), position='identity')
+```
+
+```{r urine dipstick tests, %}
+df_summary2 <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    leucocyte = as.character(leucocyte),
+    he_usg = as.character(he_usg),
+    he_uph = as.character(he_uph)
+  ) %>%
+  filter(age>=18) %>%
+  select(-c(id))
+
+glimpse(df_summary2)
+df_summary2 <- df_summary2[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary2)
+
+stat_tbl1 <- tableby(from ~ he_unitr + he_usg + he_uph + he_upro + he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, data=df_summary2, total=FALSE, numeric.test="kwt")
+summary(stat_tbl1, text=TRUE)
+```

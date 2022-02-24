@@ -1,0 +1,105 @@
+---
+title: "logistic regression CHA internal validation data, non-proteinuria vs proteinuria // real testset and remove duplicated cases and set levels"
+subtitle: "dimension reduction + 30model"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic_cha_new.v2.csv")
+glimpse(df)
+
+df_glm_non <- df %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+df_glm_pro <- df %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+
+glimpse(df_glm_non)
+glimpse(df_glm_pro)
+
+table(df$he_ubil)
+table(df$he_uro)
+table(df$leucocyte)
+```
+
+```{r glm non proteinuria}
+glm_non <- glm(eGFR_ab ~., family=binomial, data=df_glm_non)
+summary(glm_non)
+
+library(gtsummary)
+tbl_regression(glm_non, exponentiate = TRUE)
+```
+```{r glm proteinuria}
+glm_pro <- glm(eGFR_ab ~., family=binomial, data=df_glm_pro)
+summary(glm_pro)
+
+tbl_regression(glm_pro, exponentiate = TRUE)
+```
+
+
+```{r 45model}
+df45 <- read.csv("~/proj_ua/data/df_logistic_cha45_new.v2.csv")
+glimpse(df45)
+
+df45_non <- df45 %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab45, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+glimpse(df45_non)
+
+df45_pro <- df45 %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab45, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+glimpse(df45_pro)
+```
+
+```{r 45model glm non-proteinuria}
+glm45_non <- glm(eGFR_ab45 ~., family=binomial, data=df45_non)
+summary(glm45_non)
+
+tbl_regression(glm45_non, exponentiate = TRUE)
+```
+
+```{r 45model glm proteinuria}
+glm45_pro <- glm(eGFR_ab45 ~., family=binomial, data=df45_pro)
+summary(glm45_pro)
+
+tbl_regression(glm45_pro, exponentiate = TRUE)
+```
+```{r 30model}
+df30 <- read.csv("~/proj_ua/data/df_logistic_cha30_new.v2.csv")
+glimpse(df30)
+
+df30_non <- df30 %>%
+  filter(he_upro<2) %>%
+ # select(-c(X, eGFR_ab, eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab30, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+glimpse(df30_non)
+
+df30_pro <- df30 %>%
+  filter(he_upro>=2) %>%
+#  select(-c(eGFR_ab, eGFR_ckd, id, from, level)) %>%
+  select(c(eGFR_ab30, 'male', 'he_usg', 'he_uph', 'he_ubld', 'he_uglu', 'he_upro', 'age'))
+glimpse(df30_pro)
+```
+```{r 30model glm non-proteinuria}
+glm30_non <- glm(eGFR_ab30 ~., family=binomial, data=df30_non)
+summary(glm30_non)
+
+tbl_regression(glm30_non, exponentiate = TRUE)
+```
+
+```{r 30model glm proteinuria}
+glm30_pro <- glm(eGFR_ab30 ~., family=binomial, data=df30_pro)
+summary(glm30_pro)
+
+tbl_regression(glm30_pro, exponentiate = TRUE)
+```

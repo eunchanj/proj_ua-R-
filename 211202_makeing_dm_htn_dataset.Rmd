@@ -1,0 +1,90 @@
+---
+title: "diabetes, hypertension label dataset, CHA"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()`"
+---
+
+
+
+```{r}
+library(dplyr)
+
+# load dataset
+
+list <- read.csv("~/proj_ua/data/cha_test_psm.csv")
+
+cha <- read.csv("~/proj_ua/data/cha_fundus.csv") %>%
+  select(c(patient_id, male, age, date_eGFR, 10:18, 21,22,24)) %>%
+  unique()
+
+glimpse(cha)
+length(unique(cha$patient_id))
+
+
+dm_htn <- read.csv("~/proj_ua/data/cha_dm_htn.csv") %>%
+  select(c(4,8,9, date_eGFR)) %>%
+  unique()
+
+glimpse(dm_htn)
+length(unique(dm_htn$patient_id))
+
+m_table <- read.csv("~/proj_ua/data/m_table.csv") %>%
+  rename(
+    patient_id = "e_id",
+    rp_id = "p_id"
+  ) %>%
+  unique()
+
+glimpse(m_table)
+
+dm_htn_id <- dm_htn %>%
+  left_join(m_table)
+glimpse(dm_htn_id)
+length(which(is.na(dm_htn_id$p_id)))
+```
+
+```{r}
+table(dm_htn_id$dm_def)
+table(dm_htn_id$htn_def)
+
+df <- inner_join(cha, dm_htn_id, by=c('patient_id', 'date_eGFR')) %>%
+  unique() %>%
+  rename(
+    he_ubld = "blood",
+    he_uglu = "glucose",
+    he_uph = "ph",
+    he_usg = "sg",
+    he_upro = "protein",
+    eGFR_ab = "egfr_60"
+  ) %>%
+  select(
+    -c(date_eGFR)
+  )
+glimpse(df)
+length(unique(df$patient_id))
+
+table(df$dm_def)
+table(df$htn_def)
+
+df_dm <- df %>%
+  filter(dm_def == 1)
+glimpse(df_dm)
+length(unique(df_dm$patient_id))
+
+df_dm2 <- df_dm[!duplicated(df_dm$patient_id),]
+table(df_dm2$eGFR_ab)
+
+df_htn <- df %>%
+  filter(htn_def == 1)
+glimpse(df_htn)
+length(unique(df_htn$patient_id))
+table(df_htn$eGFR_ab)
+```
+
+```{r}
+#write.csv(df_dm2, "~/proj_ua/data/cha_dm_fundus.csv", row.names = F, fileEncoding = "utf-8")
+#write.csv(df_htn, "~/proj_ua/data/cha_htn_fundus.csv", row.names = F, fileEncoding = "utf-8")
+```
+
+

@@ -1,0 +1,85 @@
+---
+title: "knhanes svydesign logistic regression"
+author: "chandler"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    df_print: paged
+---
+##210405
+```{r load dataset}
+library(dplyr)
+
+kn <- read.csv("~/proj_ua/data/kn_ua_svy.csv", fileEncoding = "utf-8") %>%
+  filter(!is.na(wt_12y)) %>%
+  mutate(
+    male = ifelse(sex==1,1,0)
+  )
+
+glimpse(kn)
+```
+```{r survey library}
+library(survey)
+kn_svy <- svydesign(data = kn, id = ~psu+id_fam, strata = ~kstrata, weights = ~wt_12y)
+```
+
+```{r survey library subset}
+
+kn_svy_sub <- kn_svy %>%
+  subset(!is.na(he_crea)) %>%
+  subset(!is.na(he_uph)) %>%
+  subset(!is.na(he_unitr)) %>%
+  subset(!is.na(he_usg)) %>%
+  subset(!is.na(he_upro)) %>%
+  subset(!is.na(he_uglu)) %>%
+  subset(!is.na(he_uket)) %>%
+  subset(!is.na(he_ubil)) %>%
+  subset(!is.na(he_ubld)) %>%
+  subset(!is.na(he_uro)) %>%
+  subset(age>=18 & age<80)
+
+kn_svy_sub$variables$age <- scale(kn_svy_sub$variables$age)
+kn_svy_sub$variables$he_uph <- scale(kn_svy_sub$variables$he_uph)
+kn_svy_sub$variables$he_usg <- scale(kn_svy_sub$variables$he_usg)
+#kn_svy_sub$variables$zage <- kn_svy_sub$variables$age
+```
+
+```{r svyglm}
+summary(svyglm(eGFR_ab ~ male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro+age  + 
+             age*male + age*he_uph + age*he_usg + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + he_upro*age,
+       design=kn_svy_sub, family=quasibinomial()))
+```
+
+```{r age scaled grapgh}
+kn_svy_60 <- kn_svy %>%
+#  subset(eGFR_ab==1) %>%
+  subset(!is.na(he_upro))
+#kn_svy_60$variables$he_upro <- ifelse(kn_svy_60$variables$he_upro==0,"non-proteinuria","proteinuria")
+table(kn_svy_60$variables$he_upro, exclude = F)
+summary(kn_svy_60$variables)
+
+a<-svyby(~age, ~he_upro, kn_svy_60, svymean) %>%
+  mutate(
+    lower = age-se,
+    upper = age+se
+  )
+ggplot(a, mapping=aes(x=he_upro, y=age, ymin=lower, ymax=upper)) +
+  geom_col(fill="gray", width = 0.4, position = "dodge") +
+  geom_errorbar(width=.2) +
+  geom_text(aes(label = round(age), x = a$he_upro +0.2, y= round(age)), size=4) +
+  scale_x_discrete(limits=c(0,1,2,3,4,5)) +
+  labs(y="Mean Age", x="Proteinuria")
+
+```
+
+```{r age proteinuria interaction graph}
+shs <- kn_svy_sub
+shs$variables$he_upro <- ifelse(shs$variables$he_upro==0,0,1)
+
+bys <- svyby(~eGFR_ab, ~age+he_upro, svymean, design=shs)
+
+plot(svysmooth(eGFR_ab~age, design=subset(shs,he_upro==0), bandwidth = 0.05), ylim=c(0,1),ylab = "eGFR<60, prevalence")
+lines(svysmooth(eGFR_ab~age, design=subset(shs,he_upro!=0), bandwidth = 0.05), lwd=2,lty=3)
+points(bys$age, bys$eGFR_ab, pch=ifelse(bys$he_upro==0,19,1))
+legend("topleft", pch=c(19,1),lty=c(1,3),lwd=c(1,2),legend=c("normal", "proteinuria"),bty="n")
+```

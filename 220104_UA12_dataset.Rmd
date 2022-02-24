@@ -1,0 +1,81 @@
+---
+title: "UA 11 dataset, + HE_UCREA, HE_UNa"
+output: html_notebook
+author: "chandler"
+time: "` r Sys.time()`"
+---
+
+
+```{r, load dataset and preparing dm, htn of knhanes}
+library(haven)
+library(dplyr)
+
+base <- read.csv("~/proj_ua/data/chasv_development.v2.csv") %>%
+  filter(from=="knhanes")
+
+kn9 <- read_sas("~/dataset/knhanes_raw/2009/hn09_all.sas7bdat", encoding = "cp949")
+kn10 <- read_sas("~/dataset/knhanes_raw/2010/hn10_all.sas7bdat", encoding = "cp949")
+kn11 <- read_sas("~/dataset/knhanes_raw/2011/hn11_all.sas7bdat", encoding = "cp949")
+#kn12 <- read_sas("~/dataset/knhanes_raw/2012/hn12_all.sas7bdat", encoding = "cp949")
+#kn13 <- read_sas("~/dataset/knhanes_raw/2013/hn13_all.sas7bdat", encoding = "cp949")
+kn14 <- read_sas("~/dataset/knhanes_raw/2014/hn14_all.sas7bdat", encoding = "cp949")
+kn15 <- read_sas("~/dataset/knhanes_raw/2015/hn15_all.sas7bdat", encoding = "cp949")
+kn16 <- read_sas("~/dataset/knhanes_raw/2016/hn16_all.sas7bdat", encoding = "cp949")
+kn17 <- read_sas("~/dataset/knhanes_raw/2017/hn17_all.sas7bdat", encoding = "cp949")
+kn18 <- read_sas("~/dataset/knhanes_raw/2018/hn18_all.sas7bdat", encoding = "cp949")
+
+kn <- kn9 %>%
+  full_join(kn10) %>%
+  full_join(kn11) %>%
+  #full_join(kn12) %>%
+  #full_join(kn13) %>%
+  full_join(kn14) %>%
+  full_join(kn15) %>%
+  full_join(kn16) %>%
+  full_join(kn17) %>%
+  full_join(kn18)
+colnames(kn)
+
+kn_sel <- kn %>%
+  select(c(ID, HE_UCREA, HE_Una, HE_UNa, wt_itvex)) %>%
+  rename(
+    id = "ID",
+    ucrea = "HE_UCREA",
+    una1 = "HE_Una",
+    una2 = "HE_UNa"
+  ) %>%
+  mutate(
+    una = ifelse(is.na(una1), una2, una1),
+    wt = wt_itvex/8
+  ) %>%
+  select(-c(una1, una2, wt_itvex)) %>%
+  filter(!is.na(ucrea)&!is.na(una)&!is.na(wt)) %>%
+  unique()
+length(unique(kn_sel$id))
+glimpse(kn_sel)
+```
+
+```{r, check columns}
+summary(kn_sel)
+
+for(i in 2:length(colnames(kn_sel))) {
+  print(colnames(kn_sel[i]))
+  print(table(kn_sel[,i], exclude = F))
+}
+```
+
+
+```{r, update dm, htn of cha}
+
+df_ua12 <- base %>%
+  inner_join(kn_sel, by="id") %>%
+  unique()
+glimpse(df_ua12)
+
+df_ua12_reorder <- df_ua12[,c(1:15, 19,20,16,17,18,21)]
+glimpse(df_ua12_reorder)
+```
+
+```{r, write dataset}
+#write.csv(df_ua12_reorder, "~/proj_ua/data/knhanes_ua12_dataset.v1.csv", fileEncoding = "utf-8", row.names = F)
+```

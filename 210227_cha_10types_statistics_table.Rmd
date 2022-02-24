@@ -1,0 +1,80 @@
+---
+title: "summary cha dataset"
+output: html_notebook
+---
+#summary table 60model / kmeans
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(dplyr)
+library(arsenal)
+library(knitr)
+
+df <-read.csv("~/proj_ua/data/ua_full_10types.v3.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    leucocyte = as.character(leucocyte),
+    level = ifelse(age<56, 0, ifelse(age<74, 1, 2))
+  ) %>%
+  filter(age>=18, from=='cha') %>%
+  select(-c(from,id))
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,2,5:15)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+
+#summary table 45model norm / kmeans
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(dplyr)
+library(arsenal)
+library(knitr)
+
+df <-read.csv("~/proj_ua/data/ua_full_10types.v3.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = ifelse(male==1, "male", "female"),
+    eGFR_ab = as.character(eGFR_ab),
+#    eGFR_ab45 = ifelse(eGFR_ckd<45, '1',"0"),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    leucocyte = as.character(leucocyte),
+    ##45 norm
+#    level = ifelse(age<54, "age0", ifelse(age<73, "age1", "age2")),
+    ##60norm
+    level = ifelse(age<56, "age0", ifelse(age<74, "age1", "age2")),
+    level_male = paste(male, level)
+  ) %>%
+  filter(age>=18, from=='cha') %>%
+  select(-c(from,id))
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,1,2,3,5:14,16)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level_male ~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```

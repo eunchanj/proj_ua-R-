@@ -1,0 +1,92 @@
+---
+title: "multiple logistic regression, chasv version"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()`"
+---
+
+```{r load dataset and clean dataset}
+library(dplyr)
+library(gtsummary)
+
+df <- read.csv("~/proj_ua/data/df_lr_chasv.v1.csv")
+glimpse(df)
+
+df_glm_all <- df %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_all)
+
+df_glm_g1 <- df %>%
+  filter(dm==1) %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_g1)
+
+df_glm_g2 <- df %>%
+  filter(htn==1) %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_g2)
+
+df_glm_g3 <- df %>%
+  filter(age>=65) %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_g3)
+
+df_glm_g4 <- df %>%
+  filter(he_upro>1) %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_g4)
+
+df_glm_g5 <- df %>%
+  filter((age>=65&dm==1)|(age>=65&htn==1)|(age>=65&he_upro>1)) %>%
+  select(c(eGFR_ab, std_age, male, std_usg, std_uph, he_ubld, he_uglu, he_upro))
+glimpse(df_glm_g1)
+
+```
+
+```{r, general logistic model, all}
+glm_all <- glm(eGFR_ab ~., family=binomial, data=df_glm_all)
+summary(glm)
+
+tbl_regression(glm_all, exponentiate = TRUE)
+```
+
+```{r, general logistic model, g1}
+glm_g1 <- glm(eGFR_ab ~., family=binomial, data=df_glm_g1)
+summary(glm_g1)
+
+tbl_regression(glm_g1, exponentiate = TRUE)
+```
+
+```{r, general logistic model, g2}
+glm_g2 <- glm(eGFR_ab ~., family=binomial, data=df_glm_g2)
+summary(glm_g2)
+
+tbl_regression(glm_g2, exponentiate = TRUE)
+```
+
+```{r, general logistic model, g3}
+glm_g3 <- glm(eGFR_ab ~., family=binomial, data=df_glm_g3)
+summary(glm_g3)
+
+tbl_regression(glm_g3, exponentiate = TRUE)
+```
+
+```{r, general logistic model, g4}
+glm_g4 <- glm(eGFR_ab ~., family=binomial, data=df_glm_g4)
+summary(glm_g4)
+
+tbl_regression(glm_g4, exponentiate = TRUE)
+```
+
+```{r, general logistic model, g5}
+glm_g5 <- glm(eGFR_ab ~., family=binomial, data=df_glm_g5)
+summary(glm_g5)
+
+tbl_regression(glm_g5, exponentiate = TRUE)
+```
+
+```{r, mean std}
+print("age");mean(df$age);sd(df$age)
+print("ph");mean(df$he_uph);sd(df$he_uph)
+print("sg");mean(df$he_usg);sd(df$he_usg)
+```

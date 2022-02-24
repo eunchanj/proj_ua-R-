@@ -1,0 +1,77 @@
+---
+title: "logistic regression CHA internal validation data, non-proteinuria vs proteinuria"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic_cha_new.v1.csv")
+glimpse(df)
+
+df_glm_non <- df %>%
+  filter(he_upro<2) %>%
+  mutate(
+    ab=ifelse(eGFR_ckd<60, 1, 0)
+  ) %>%
+  select(-eGFR_ckd)
+
+df_glm_pro <- df %>%
+  filter(he_upro>=2) %>%
+  mutate(
+    ab=ifelse(eGFR_ckd<60,1,0)
+  ) %>%
+  select(-eGFR_ckd)
+
+glimpse(df_glm_non)
+glimpse(df_glm_pro)
+```
+
+```{r glm non proteinuria}
+glm_non <- glm(ab ~., family=binomial, data=df_glm_non)
+summary(glm_non)
+
+library(gtsummary)
+tbl_regression(glm_non, exponentiate = TRUE)
+```
+```{r glm proteinuria}
+glm_pro <- glm(ab ~., family=binomial, data=df_glm_pro)
+summary(glm_pro)
+
+tbl_regression(glm_pro, exponentiate = TRUE)
+```
+
+
+```{r 45model}
+df45 <- read.csv("~/proj_ua/data/df_logistic_cha45_new.v1.csv")
+df45_non <- df45 %>%
+  filter(he_upro<2) %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  ) %>%
+  select(!eGFR_ckd)
+glimpse(df45_non)
+
+df45_pro <- df45 %>%
+  filter(he_upro>=2) %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  ) %>%
+  select(!eGFR_ckd)
+glimpse(df45_pro)
+```
+
+```{r 45model glm non-proteinuria}
+glm45_non <- glm(eGFR_ab45 ~., family=binomial, data=df45_non)
+summary(glm45_non)
+
+tbl_regression(glm45_non, exponentiate = TRUE)
+```
+```{r 45model glm proteinuria}
+glm45_pro <- glm(eGFR_ab45 ~., family=binomial, data=df45_pro)
+summary(glm45_pro)
+
+tbl_regression(glm45_pro, exponentiate = TRUE)
+```
+

@@ -1,0 +1,33 @@
+---
+title: "pROC test in testset"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+#ref : https://www.r-bloggers.com/2019/08/how-to-get-an-auc-confidence-interval/
+```{r library and load dataset}
+
+library(dplyr)
+library(pROC)
+
+df_proc <- read.csv("/home/danssa/proj_ua/data/proc_testset.csv", fileEncoding = "utf-8")
+glimpse(df_proc)
+```
+```{r ci.auc}
+
+#age total
+print("age total"); ci.auc(df_proc$eGFR_ab, df_proc$prob)
+
+#age level0
+df_proc0 = filter(df_proc, level==0)
+print("age 18-45"); ci.auc(df_proc0$eGFR_ab, df_proc0$prob)
+
+#age level1
+df_proc1 = filter(df_proc, level==1)
+print("age 45-65"); ci.auc(df_proc1$eGFR_ab, df_proc1$prob)
+
+#age level2
+df_proc2 = filter(df_proc, level==2)
+print("age 65-"); ci.auc(df_proc2$eGFR_ab, df_proc2$prob)
+```

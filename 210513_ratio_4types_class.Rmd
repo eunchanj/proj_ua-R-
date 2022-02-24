@@ -1,0 +1,103 @@
+---
+title: "check prevalence each class(4types) on young age group"
+output: html_notebook
+author: "chandler"
+date: "'r Sys.time()'"
+---
+
+#final version
+```{r load dataset}
+library(dplyr)
+cha <- read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv", fileEncoding = "utf-8") %>%
+  filter(from=="cha") %>%
+  filter(age>=18 & age<=90)%>%
+  mutate(eGFR_ab45 = ifelse(eGFR_ckd<45,1,0))
+glimpse(cha)
+```
+
+#CHA
+```{r cha data}
+library(dplyr)
+glimpse(cha)
+
+cha_gb <- cha_age %>%
+  filter(he_upro>0) %>%
+  group_by(age) %>%
+  summarise(proteinuria_cases = n(), estimated_cases = mean(eGFR_ab)*n())
+cha_gb
+
+cases <- cha %>%
+  filter(he_upro>0, eGFR_ckd<60) %>%
+  group_by(age) %>%
+  summarise(real_cases=n())
+
+comtbl <- cha_gb %>%
+  left_join(cases) %>%
+  mutate(
+    diff = round(estimated_cases - real_cases)
+  )
+
+
+cha30 <- filter(cha, cha$age<30)
+table(cha30$eGFR_ab[cha30$he_upro!=0])
+```
+
+```{r 60 bar graph}
+df_cha_non <- cha %>%
+  mutate(
+    age_level = ifelse(age<45,"18-45",
+                       ifelse(age>=45&age<65,"45-65", "65-90")),
+    class = ifelse(eGFR_ab==0 & he_upro<2, "eGFR>60, non-proteinuria",
+                   ifelse(eGFR_ab==0 & he_upro>=2, "eGFR>60, proteinuria",
+                          ifelse(eGFR_ab==1 & he_upro<2, "eGFR<60, non-proteinuria", "eGFR<60, proteinuria")))
+    
+  )
+
+summary <- df_cha_non %>%
+  group_by(age_level, class) %>%
+  summarise(cases=n(), prev=mean(eGFR_ab))
+  
+bar60 <- ggplot(df_cha_non) +
+  geom_bar(aes(x=age_level, fill=class)
+           , position="fill", width = 0.5
+           ) +
+  scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  xlab("Age (year)") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15))
+bar60
+
+ggsave("~/proj_ua/images/60bar.png", width = 10, height = 6,bar60, dpi = 300)
+```
+
+```{r 45 bar graph}
+str(cha)
+df_cha_non45 <- cha %>%
+  mutate(
+    age_level = ifelse(age<60,"18-60",
+                       ifelse(age>=60&age<75,"60-75", "75-90")),
+    class = ifelse(eGFR_ab45==0 & he_upro<2, "eGFR>45, non-proteinuria",
+                   ifelse(eGFR_ab45==0 & he_upro>=2, "eGFR>45, proteinuria",
+                          ifelse(eGFR_ab45==1 & he_upro<2, "eGFR<45, non-proteinuria", "eGFR<45, proteinuria")))
+    
+  )
+
+summary45 <- df_cha_non45 %>%
+  group_by(age_level, class) %>%
+  summarise(cases=n(), prev=mean(eGFR_ab))
+  
+bar45 <- ggplot(df_cha_non45) +
+  geom_bar(aes(x=age_level, fill=class)
+           , position="fill", width = 0.5
+           ) +
+  scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  xlab("Age (year)") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15))
+bar45
+
+ggsave("~/proj_ua/images/45bar.png", width = 10, height = 6, bar45, dpi = 300)
+```
+

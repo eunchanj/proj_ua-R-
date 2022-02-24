@@ -1,0 +1,177 @@
+---
+title: "merging knhanes and cha + leucocyte update uro"
+output: html_notebook
+author: "chan"
+time: "`r Sys.time()`"
+---
+#merge dataset cha(new uro) + knhanes(new version)
+
+
+#load dataset
+```{r}
+library(dplyr)
+library(readxl)
+
+kn <- read.csv("~/proj_ua/data/knhanes_12y.v1.csv", fileEncoding = "utf-8") %>%
+  filter(age>=18&age<80) %>%
+  unique()
+cha <- read.csv("~/proj_ua/data/cha_ua_dataset_v3.csv", fileEncoding = "utf-8") %>%
+  filter(age>=18&age<=90) %>%
+  unique()
+cha <- cha[!duplicated(cha$patient_id), ]
+
+
+cha_raw <- read_excel("~/proj_ua/data/raw_cha.xlsx",
+                      col_types = c("text", "skip", "text", 
+                                    "numeric", "skip", "skip", "skip", 
+                                    "skip", "text", "skip", "text", "text", 
+                                    "text", "text", "text", "text", "text", 
+                                    "text", "text", "text", "skip", "skip"))
+
+
+glimpse(kn)
+glimpse(cha)
+glimpse(cha_raw)
+
+table(cha$urobilinogen)
+table(kn$he_uro)
+```
+
+#shynchronization of colname
+```{r}
+cha_colname <- cha %>%
+  filter(age>0) %>%
+  rename(
+    "id" = patient_id,
+    "uph" = ph,
+    "unitr" = nitrite,
+    "usg" = sg,
+    "upro" = protein,
+    "uglu" = glucose,
+    "uket" = ketone,
+    "ubil" = bilirubin,
+    "ubld" = blood,
+    "uro" = urobilinogen,
+    "leuk" = leucocyte
+  ) %>%
+  select(id, eGFR_ab, eGFR_ckd, male, age,
+         uph, unitr, usg, upro, uglu, uket, ubil, ubld, uro, leuk) %>%
+  unique()
+
+glimpse(cha_colname)
+summary(cha_colname)
+
+dim(cha_colname)
+dim(unique(cha_colname))
+
+```
+
+#checking and encoding each variable
+```{r}
+#knhanes
+for(i in 8:18) {
+  print(colnames(kn[i]))
+  print(table(kn[,i]))
+}
+```
+
+```{r}
+#cha
+for(i in 4:15) {
+  print(colnames(cha_colname[i]))
+  print(table(cha_colname[,i]))
+}
+```
+
+#encoding specific gravity
+```{R}
+kn_en <- kn %>%
+  mutate(
+    he_usg = ifelse(he_usg<=1.007, 1.005, 
+                    ifelse(he_usg>=1.008 & he_usg<=1.012, 1.010,
+                           ifelse(he_usg>=1.013 & he_usg<=1.017, 1.015,
+                                  ifelse(he_usg>=1.018 & he_usg<=1.022, 1.020,
+                                         ifelse(he_usg>=1.023 & he_usg<=1.027, 1.025, 1.030))))),
+    leuk = NA
+  ) %>%
+  rename(
+    "uph" = he_uph,
+    "unitr" = he_unitr,
+    "usg" = he_usg,
+    "upro" = he_upro,
+    "uglu" = he_uglu,
+    "uket" = he_uket,
+    "ubil" = he_ubil,
+    "ubld" = he_ubld,
+    "uro" = he_uro
+  )
+
+table(kn_en$usg)
+glimpse(kn_en)
+```
+
+```{r agter cha}
+#cha
+for(i in 4:15) {
+  print(colnames(cha_colname[i]))
+  print(table(cha_colname[,i]))
+}
+```
+
+```{r after kn}
+#knhanes
+for(i in 8:18) {
+  print(colnames(kn_en[i]))
+  print(table(kn_en[,i]))
+}
+```
+
+#merging dataset using rbind
+```{r}
+library(stringr)
+glimpse(cha_colname)
+glimpse(kn_en)
+
+df_ori_encoding <- rbind(cha_colname, kn_en[,-c(2:5)]) %>%
+  unique()
+glimpse(df_ori_encoding)
+
+df_arr <- df_ori_encoding %>%
+  mutate(
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  ) %>%
+  unique()
+
+glimpse(df_arr)
+table(df_arr$from)
+
+#write.csv(df_arr, "~/proj_ua/data/ua_full_10types_ori_enco.v1.csv", fileEncoding = "utf-8", row.names = F)
+```
+
+#summary table
+##210314
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+library(stringr)
+
+df_summary <- df_arr %>%
+  mutate(
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  )
+
+glimpse(df_summary)
+
+stat_tbl <- tableby(from~ . ,data=df_summary[,-1])
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+

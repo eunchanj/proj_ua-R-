@@ -1,0 +1,200 @@
+---
+title: "Summary knhanes 12y dataset sort by age"
+output: html_notebook
+---
+#summary table 60model
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df <-read.csv("~/proj_ua/data/knhanes_12y_age.v1.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20)
+
+df_summary <- df_summary[,c(4,3,1,2,5:14)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+#summary table // kmeans 
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df2 <-read.csv("~/proj_ua/data/knhanes_12y_kmeans.v1.csv", fileEncoding = 'utf-8')
+glimpse(df2)
+
+df2_summary <- df2 %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20)
+glimpse(df2_summary)
+
+df2_summary2 <- df2_summary[,c(4,3,1,2,5:14)]
+glimpse(df2_summary2)
+
+df2_summary3 <- df2_summary[,c(4,3,1,2,5:13,15)]
+glimpse(df2_summary3)
+
+stat_tbl2 <- tableby(level~ . ,data=df2_summary2)
+summary(stat_tbl2)
+kable(summary(stat_tbl2))
+
+stat_tbl3 <- tableby(level2~ . ,data=df2_summary3)
+summary(stat_tbl3)
+kable(summary(stat_tbl3))
+```
+
+#summary table 45model
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df <-read.csv("~/proj_ua/data/knhanes_12y_age.v2.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20)
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,14,5:13,15)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+#summary table 60model / proteinuria in positive cases
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df <-read.csv("~/proj_ua/data/knhanes_12y_age.v1.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20, eGFR_ab==1)
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,2,5:13,15)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+
+#summary table 60model / age<80
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df <-read.csv("~/proj_ua/data/knhanes_12y_age.v1.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    level = ifelse(age<68, 0, ifelse(age<=74, 1, 2))
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20, age<80)
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,2,5:14)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+
+#summary table 60model / age<80 kmeans
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+
+df <-read.csv("~/proj_ua/data/knhanes_12y_age.v1.csv", fileEncoding = 'utf-8')
+glimpse(df)
+
+df_summary <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    level = ifelse(age<56, 0, ifelse(age<69, 1, 2))
+  ) %>%
+  select(-c(id, id_fam, psu, kstrata, wt_12y)) %>%
+  filter(age>=20, age<80)
+
+glimpse(df_summary)
+df_summary <- df_summary[,c(4,3,1,2,5:14)]
+glimpse(df_summary)
+
+stat_tbl <- tableby(level~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```

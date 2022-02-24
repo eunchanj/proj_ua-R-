@@ -1,0 +1,231 @@
+---
+title: "Interaction age and protein KNHANES and CHA"
+output: html_notebook
+author: "chandler"
+date: "'r Sys.time()'"
+---
+
+
+```{r load dataset}
+library(dplyr)
+cha <- read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv", fileEncoding = "utf-8") %>%
+  filter(from=="cha") %>%
+  filter(age>=18 & age<=90)%>%
+  mutate(eGFR_ab45 = ifelse(eGFR_ckd<45,1,0))
+cha_st <- read.csv("~/proj_ua/data/df_logistic_cha.v1.csv")
+
+kn_wt <- read.csv("~/proj_ua/data/kn_ua_svy.csv", fileEncoding = "utf-8") %>%
+  filter(!is.na(wt_12y)) %>%
+  mutate(
+    male = ifelse(sex==1,1,0)
+  )
+
+glimpse(cha)
+glimpse(kn_wt)
+glimpse(cha_st)
+summary(cha_st$age)
+```
+#KNHANES
+```{r survey design}
+library(survey)
+kn_svy <- svydesign(data = kn_wt, id = ~psu+id_fam, strata = ~kstrata, weights = ~wt_12y)
+
+kn_svy_sub <- kn_svy %>%
+  subset(!is.na(he_crea)) %>%
+  subset(!is.na(he_uph)) %>%
+  subset(!is.na(he_unitr)) %>%
+  subset(!is.na(he_usg)) %>%
+  subset(!is.na(he_upro)) %>%
+  subset(!is.na(he_uglu)) %>%
+  subset(!is.na(he_uket)) %>%
+  subset(!is.na(he_ubil)) %>%
+  subset(!is.na(he_ubld)) %>%
+  subset(!is.na(he_uro)) %>%
+  subset(age>=18 & age<80)
+
+```
+
+```{r set data}
+shs <- kn_svy_sub
+
+table(shs$variables$he_upro)
+shs$variables$he_upro <- ifelse(shs$variables$he_upro>=3,3,shs$variables$he_upro)
+table(shs$variables$he_upro)
+
+shs$variables$age_level <- ifelse(shs$variables$age<45, 0,
+                                  ifelse(shs$variables$age>=45 & shs$variables$age<65, 1, 2))
+shs$variables$age_level45 <- ifelse(shs$variables$age<60, 0,
+                                  ifelse(shs$variables$age>=60 & shs$variables$age<75, 1, 2))
+
+bys <- svyby(~eGFR_ab, ~age_level+he_upro, svymean, design=shs)
+bys45 <- svyby(~eGFR_ab45, ~age_level45+he_upro, svymean, design=shs)
+bys
+```
+
+```{r plot 60 graph}
+bys_age0 <- filter(bys, age_level==0)
+bys_age1 <- filter(bys, age_level==1)
+bys_age2 <- filter(bys, age_level==2)
+
+plot(bys_age0$he_upro, bys_age0$eGFR_ab*100, type="o", pch=19, lty=1, ylim=c(0,60),xlab="Proteinuria", ylab = "GFR<60, Prevalence(%)", main="KNHANES 60", xaxt="n")
+points(bys$he_upro, bys$eGFR_ab*100, pch=ifelse(bys$age_level==0,19,
+                                        ifelse(bys$age_level==1,1,2)))
+lines(bys_age1$he_upro, bys_age1$eGFR_ab*100, lty=2)
+lines(bys_age2$he_upro, bys_age2$eGFR_ab*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-45", "age45-65", "age65-79"),bty="n")
+axis(1, at=0:3, labels = c(0,1,2,"3-5"))
+```
+```{r plot 45 graph}
+bys45_age0 <- filter(bys45, age_level45==0)
+bys45_age1 <- filter(bys45, age_level45==1)
+bys45_age2 <- filter(bys45, age_level45==2)
+
+plot(bys45_age0$he_upro, bys45_age0$eGFR_ab45*100, type="o", pch=19, lty=1, ylim=c(0,60),xlab="Proteinuria", ylab = "GFR<45, Prevalence(%)", main="KNHANES 45", xaxt="n")
+points(bys45$he_upro, bys45$eGFR_ab45*100, pch=ifelse(bys45$age_level45==0,19,
+                                        ifelse(bys45$age_level45==1,1,2)))
+lines(bys45_age1$he_upro, bys45_age1$eGFR_ab45*100, lty=2)
+lines(bys45_age2$he_upro, bys45_age2$eGFR_ab45*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-60", "age60-75", "age75-79"),bty="n")
+axis(1, at=0:3, labels = c(0,1,2,"3-5"))
+```
+```{r plot 45 graph test}
+bys45_pro0 <- filter(bys45, he_upro==0)
+bys45_pro1 <- filter(bys45, he_upro==1)
+bys45_pro2 <- filter(bys45, he_upro==2)
+bys45_pro3 <- filter(bys45, he_upro==3)
+
+plot(bys45_pro0$age_level45, bys45_pro0$eGFR_ab45*100, type="o", pch=19, lty=1, ylim=c(0,45),xlab="Age group", ylab = "GFR<45, Prevalence(%)", main="KNHANES 45", xaxt="n")
+points(bys45$age_level45, bys45$eGFR_ab45*100, pch=ifelse(bys45$he_upro==0,19,
+                                        ifelse(bys45$he_upro==1,1,
+                                               ifelse(bys45$he_upro==2,2,3))))
+lines(bys45_pro1$age_level45, bys45_pro1$eGFR_ab45*100, lty=2)
+lines(bys45_pro2$age_level45, bys45_pro2$eGFR_ab45*100, lty=3)
+lines(bys45_pro3$age_level45, bys45_pro3$eGFR_ab45*100, lty=4)
+legend("topleft", pch=c(19,1,2,3),lty=c(1,2,3,4),lwd=c(1,2),legend=c("protein=0", "protein=1", "protein=2", "protein=3-5"),bty="n")
+axis(1, at=0:2, labels = c("age18-60","age60-75","age75-79"))
+```
+
+#CHA
+```{r cha data}
+glimpse(cha)
+
+cha_age <- cha %>%
+  mutate(
+    age_level = ifelse(age<45, 0,
+                       ifelse(age>=45 & age<65, 1, 2)),
+    age_level45 = ifelse(age<60, 0,
+                         ifelse(age>=60 & age<75, 1, 2)),
+    he_upro = ifelse(he_upro==5,4,he_upro)
+  )
+
+cha_gb <- cha_age %>%
+  group_by(he_upro, age_level) %>%
+  summarise(mean_60 = mean(eGFR_ab))
+
+cha_gb45 <- cha_age %>%
+  group_by(he_upro, age_level45) %>%
+  summarise(mean_45 = mean(eGFR_ab45))
+
+cha_gb_sg <- cha_age %>%
+  group_by(he_usg, age_level) %>%
+  summarise(mean_60 = mean(eGFR_ab))
+
+cha_gb45_sg <- cha_age %>%
+  group_by(he_usg, age_level45) %>%
+  summarise(mean_45 = mean(eGFR_ab45))
+
+cha_gb_male <- cha_age %>%
+  group_by(male, age_level) %>%
+  summarise(mean_60 = mean(eGFR_ab))
+
+
+cha_age_st <- cha_st %>%
+  mutate(
+    age_level = ifelse(age< -1, -1.4,
+                       ifelse(age>=-1 & age<1, 0, 1.9))
+  )
+summary(cha_st$age)
+table(cha_age_st$age_level)
+
+cha_gb_st <- cha_age_st %>%
+  group_by(he_upro, age_level) %>%
+  summarise(mean_60 = mean(eGFR_ab))
+
+cha_gb
+```
+
+```{r plot 60 CHA}
+cha_age0 <- filter(cha_gb, age_level==0)
+cha_age1 <- filter(cha_gb, age_level==1)
+cha_age2 <- filter(cha_gb, age_level==2)
+
+plot(cha_age0$he_upro, cha_age0$mean_60*100, type="o", pch=19, lty=1, ylim=c(0,80),xlab="Proteinuria", ylab = "GFR<60, Prevalence(%)", main = "CHA 60", xaxt="n")
+points(cha_gb$he_upro, cha_gb$mean_60*100, pch=ifelse(cha_gb$age_level==0,19,
+                                        ifelse(cha_gb$age_level==1,1,2)))
+lines(cha_age1$he_upro, cha_age1$mean_60*100, lty=2)
+lines(cha_age2$he_upro, cha_age2$mean_60*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-45", "age45-65", "age65-90"),bty="n")
+axis(1, at=0:4, labels = c(0,1,2,3,"4,5"))
+```
+```{r plot 45 CHA}
+cha45_age0 <- filter(cha_gb45, age_level45==0)
+cha45_age1 <- filter(cha_gb45, age_level45==1)
+cha45_age2 <- filter(cha_gb45, age_level45==2)
+
+plot(cha45_age0$he_upro, cha45_age0$mean_45*100, type="o", pch=19, lty=1, ylim=c(0,80),xlab="Proteinuria", ylab = "GFR<45, Prevalence(%)", main = "CHA 45", xaxt="n")
+points(cha_gb45$he_upro, cha_gb45$mean_45*100, pch=ifelse(cha_gb45$age_level45==0,19,
+                                        ifelse(cha_gb45$age_level45==1,1,2)))
+lines(cha45_age1$he_upro, cha45_age1$mean_45*100, lty=2)
+lines(cha45_age2$he_upro, cha45_age2$mean_45*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-60", "age60-75", "age75-90"),bty="n")
+axis(1, at=0:4, labels = c(0,1,2,3,"4,5"))
+```
+
+```{r plot 60 CHA sg}
+cha_age0_sg <- filter(cha_gb_sg, age_level==0)
+cha_age1_sg <- filter(cha_gb_sg, age_level==1)
+cha_age2_sg <- filter(cha_gb_sg, age_level==2)
+
+plot(cha_age0_sg$he_usg, cha_age0_sg$mean_60*100, type="o", pch=19, lty=1, ylim=c(0,45),xlab="Specific Gravity", ylab = "GFR<60, Prevalence(%)", main = "CHA 60")
+points(cha_gb_sg$he_usg, cha_gb_sg$mean_60*100, pch=ifelse(cha_gb_sg$age_level==0,19,
+                                        ifelse(cha_gb_sg$age_level==1,1,2)))
+lines(cha_age1_sg$he_usg, cha_age1_sg$mean_60*100, lty=2)
+lines(cha_age2_sg$he_usg, cha_age2_sg$mean_60*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-45", "age45-65", "age65-90"),bty="n")
+```
+```{r plot 45 CHA sg}
+cha45_age0_sg <- filter(cha_gb45_sg, age_level45==0)
+cha45_age1_sg <- filter(cha_gb45_sg, age_level45==1)
+cha45_age2_sg <- filter(cha_gb45_sg, age_level45==2)
+
+plot(cha45_age0_sg$he_usg, cha45_age0_sg$mean_45*100, type="o", pch=19, lty=1, ylim=c(0,30),xlab="Specific Gravity", ylab = "GFR<45, Prevalence(%)", main = "CHA 45")
+points(cha_gb45_sg$he_usg, cha_gb45_sg$mean_45*100, pch=ifelse(cha_gb45_sg$age_level45==0,19,
+                                        ifelse(cha_gb45_sg$age_level45==1,1,2)))
+lines(cha45_age1_sg$he_usg, cha45_age1_sg$mean_45*100, lty=2)
+lines(cha45_age2_sg$he_usg, cha45_age2_sg$mean_45*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-60", "age60-75", "age75-90"),bty="n")
+```
+```{r plot 60 CHA male}
+cha_age0_male <- filter(cha_gb_male, male==0)
+cha_age1_male <- filter(cha_gb_male, male==1)
+
+plot(cha_age0_male$age_level, cha_age0_male$mean_60*100, type="o", pch=19, lty=1, ylim=c(0,35),xlab="Age", ylab = "GFR<60, Prevalence(%)", main = "CHA 60", xaxt="n")
+points(cha_gb_male$age_level, cha_gb_male$mean_60*100, pch=ifelse(cha_gb_male$male==0,19,1))
+lines(cha_age1_male$age_level, cha_age1_male$mean_60*100, lty=2)
+
+legend("topleft", pch=c(19,1),lty=c(1,2),lwd=c(1,2),legend=c("female", "male"),bty="n")
+axis(1, at=0:2, labels = c("age18-45","age45-65","age65-90"))
+```
+
+```{r plot 60 CHA st dataset}
+cha_age0 <- filter(cha_gb_st, age_level==-1.4)
+cha_age1 <- filter(cha_gb_st, age_level==0)
+cha_age2 <- filter(cha_gb_st, age_level==1.9)
+
+plot(cha_age0$he_upro, cha_age0$mean_60*100, type="o", pch=19, lty=1, ylim=c(0,80),xlab="Proteinuria", ylab = "GFR<60, Prevalence(%)", main = "CHA 60")
+points(cha_gb_st$he_upro, cha_gb_st$mean_60*100, pch=ifelse(cha_gb$age_level==-1.4,19,
+                                        ifelse(cha_gb$age_level==0,1,2)))
+lines(cha_age1$he_upro, cha_age1$mean_60*100, lty=2)
+lines(cha_age2$he_upro, cha_age2$mean_60*100, lty=3)
+legend("topleft", pch=c(19,1,2),lty=c(1,2,3),lwd=c(1,2),legend=c("age18-45", "age45-65", "age65-90"),bty="n")
+```

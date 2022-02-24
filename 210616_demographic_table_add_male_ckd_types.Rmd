@@ -1,0 +1,169 @@
+---
+title: "make demographic table addtion proteinuria and CKD"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+#demographic table
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(dplyr)
+library(arsenal)
+library(knitr)
+
+cha_kn <-read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv", fileEncoding = 'utf-8')
+
+glimpse(cha_kn)
+```
+```{r}
+cha_kn2 <- cha_kn %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0),
+    proteinuria = ifelse(he_upro<2,0,1),
+    ckd = ifelse(eGFR_ab==1|proteinuria==1,1,0),
+    ckd2 = ifelse(eGFR_ab==1&proteinuria==1,"proteinuria",
+                  ifelse(eGFR_ab==1&proteinuria!=1, "non-proteinuria",
+                         ifelse(eGFR_ab==0&proteinuria==1, "isolated proteinuria", "normal"))),
+    np_ckd = ifelse(eGFR_ab==1&proteinuria==0,1,0),
+    is_ckd = ifelse(eGFR_ab==0&proteinuria==1,1,0),
+    p_ckd = ifelse(eGFR_ab==1&proteinuria==1,1,0)
+  )
+
+glimpse(cha_kn2)
+```
+```{r}
+cha_add_male <- cha_kn2 %>%
+  filter(from=="cha")
+
+df_summary <- cha_add_male %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    proteinuria = as.character(proteinuria),
+    ckd = as.character(ckd),
+    np_ckd = as.character(np_ckd),
+    is_ckd = as.character(is_ckd),
+    p_ckd = as.character(p_ckd)
+#    he_upro = as.character(he_upro),
+#    he_uglu = as.character(he_uglu),
+#    he_uket = as.character(he_uket),
+#    he_ubil = as.character(he_ubil),
+#    he_ubld = as.character(he_ubld),
+#    he_uro = as.character(he_uro),
+#    leucocyte = as.character(leucocyte),
+
+  ) %>%
+  filter(age>=18 & age<=90) %>%
+  select(-c(id))
+
+glimpse(df_summary)
+#df_summary <- df_summary[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary)
+```
+
+```{r}
+df_sub <- df_summary %>%
+  filter(ckd2==c("isolated proteinuria", "proteinuria"))
+
+sex60 <- ggplot(df_sub) +
+  geom_bar(aes(x=ckd2, fill=male)
+           , position="fill", width = 0.5
+           ) +
+  #scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  xlab("Sex") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15))
+sex60
+```
+
+
+```{r stat_tbl1}
+#isolated proteinuria
+stat_tbl1 <- tableby(ckd2~ male , data=df_sub, total=FALSE)
+summary(stat_tbl1, text=TRUE)
+kable(summary(stat_tbl1))
+```
+
+```{r stat_tbl2}
+stat_tbl1 <- tableby(male~ ckd + ckd2 , data=df_sub, total=FALSE)
+summary(stat_tbl1, text=TRUE)
+kable(summary(stat_tbl1))
+```
+
+```{r urine dipstick tests, %}
+df_summary2 <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    leucocyte = as.character(leucocyte),
+    he_usg = as.character(he_usg),
+    he_uph = as.character(he_uph)
+  ) %>%
+  filter(age>=18) %>%
+  select(-c(id))
+
+glimpse(df_summary2)
+df_summary2 <- df_summary2[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary2)
+
+stat_tbl1 <- tableby(from ~ he_unitr + he_usg + he_uph + he_upro + he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, data=df_summary2, total=FALSE, numeric.test="kwt")
+summary(stat_tbl1, text=TRUE)
+```
+
+
+```{r addition test}
+str(df_summary)
+
+CI_t <- function (x, ci = 0.95)
+{
+`%>%` <- magrittr::`%>%`
+Margin_Error <- qt(ci + (1 - ci)/2, df = length(x) - 1) * sd(x)/sqrt(length(x))
+df_out <- data.frame( sample_size=length(x), Mean=mean(x), sd=sd(x),
+Margin_Error=Margin_Error,
+'CI lower limit'=(mean(x) - Margin_Error),
+'CI Upper limit'=(mean(x) + Margin_Error)) %>%
+tidyr::pivot_longer(names_to = "Measurements", values_to ="values", 1:6 )
+return(df_out)
+}
+
+CI_z <- function (x, ci = 0.95)
+{
+`%>%` <- magrittr::`%>%`
+standard_deviation <- sd(x)
+sample_size <- length(x)
+Margin_Error <- abs(qnorm((1-ci)/2))* standard_deviation/sqrt(sample_size)
+df_out <- data.frame( sample_size=length(x), Mean=mean(x), sd=sd(x),
+Margin_Error=Margin_Error,
+'CI lower limit'=(mean(x) - Margin_Error),
+'CI Upper limit'=(mean(x) + Margin_Error)) %>%
+tidyr::pivot_longer(names_to = "Measurements", values_to ="values", 1:6 )
+return(df_out)
+}
+
+eg_cha <- df_summary %>%
+  filter(from=="cha") %>%
+  select(eGFR_ckd)
+
+eg_kn <- df_summary %>%
+  filter(from=="knhanes") %>%
+  select(eGFR_ckd)
+
+CI_t(eg_cha$eGFR_ckd, ci=0.95)
+
+## cha CI - z
+CI_z(eg_cha$eGFR_ckd, ci=0.95)
+## kn CI - z
+CI_z(eg_kn$eGFR_ckd, ci=0.95)
+
+```

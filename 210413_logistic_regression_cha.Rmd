@@ -1,0 +1,80 @@
+---
+title: "logistic regression CHA dataset"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic_cha.v1.csv")
+
+glimpse(df)
+
+df_glm <- df %>%
+  select(-eGFR_ckd)
+
+glimpse(df_glm)
+
+df_glm_pro <- df %>%
+  filter(he_upro!=5 & he_upro!=4 & he_upro!=3 & he_upro!=2)
+
+table(df_glm_pro$he_upro)
+```
+```{r glm }
+glm <- glm(eGFR_ab ~., family=binomial, data=df_glm)
+summary(glm)
+
+library(gtsummary)
+tbl_regression(glm, exponentiate = TRUE)
+```
+```{r glm interaction}
+glm2 <- glm(eGFR_ab ~ age + male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte + he_unitr +
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+            family=binomial, data=df_glm)
+summary(glm2)
+```
+
+```{r OR table}
+library(gtsummary)
+
+tbl_regression(glm2, exponentiate = TRUE)
+```
+
+```{r 45model}
+df45 <- df %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  ) %>%
+  select(!c(eGFR_ab, eGFR_ckd))
+glimpse(df45)
+```
+
+```{r 45model glm}
+glm45 <- glm(eGFR_ab45 ~., family=binomial, data=df45)
+summary(glm45)
+
+tbl_regression(glm45, exponentiate = TRUE)
+```
+
+```{r 45model glm interaction term}
+glm2_45 <- glm(eGFR_ab45 ~ age + male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte + he_unitr +
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+            family=binomial, data=df45)
+summary(glm2_45)
+
+tbl_regression(glm2_45, exponentiate = TRUE)
+```
+```{r 60model glm interaction term excepted protein 5}
+df_ori <- read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv") %>%
+  filter(from=="cha") %>%
+  filter(age>=18 & age<=90)
+summary(df_ori)
+
+glm_pro <- glm(eGFR_ab ~ age + male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte+ 
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+            family=binomial, data=df_ori)
+summary(glm_pro)
+
+tbl_regression(glm_pro, exponentiate = TRUE)
+```

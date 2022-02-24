@@ -1,0 +1,27 @@
+---
+title: "SEVERANCE dataset manipulated prevalence"
+output: html_notebook
+---
+
+
+```{r}
+ys <- read.csv("~/proj_ua/data/ev_ys.csv", fileEncoding = "utf-8")
+glimpse(ys)
+
+ys_ab <- ys %>%
+  filter(eGFR_ab==1)
+glimpse(ys_ab)
+
+library(dplyr)
+set.seed(0)
+ys_ab_sam <- sample_n(ys_ab, 850)
+glimpse(ys_ab_sam)
+
+df_sam <- rbind(filter(ys, ys$eGFR_ab==0), ys_ab_sam)
+glimpse(df_sam)
+t <- table(df_sam$eGFR_ab)
+t[2] / (t[1]+t[2])
+
+#write.csv(df_sam, "~/proj_ua/data/ev_ys_set_prev.v1.csv", fileEncoding = "utf-8", row.names = F)
+```
+

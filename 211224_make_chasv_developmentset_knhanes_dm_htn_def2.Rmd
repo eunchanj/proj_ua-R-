@@ -1,0 +1,103 @@
+---
+title: "make KNHANES DM + HTN"
+output: html_notebook
+author: "chandler"
+time: "` r Sys.time()`"
+---
+
+
+```{r, load dataset and preparing dm, htn of knhanes}
+library(haven)
+library(dplyr)
+
+old <- read.csv("~/proj_ua/data/chasv_development.v1.csv")
+
+kn7 <- read_sas("~/dataset/knhanes_raw/2007/hn07_all.sas7bdat", encoding = "cp949") %>%
+  rename(
+    ID = 'id'
+  )
+kn8 <- read_sas("~/dataset/knhanes_raw/2008/hn08_all.sas7bdat", encoding = "cp949")
+kn9 <- read_sas("~/dataset/knhanes_raw/2009/hn09_all.sas7bdat", encoding = "cp949")
+kn10 <- read_sas("~/dataset/knhanes_raw/2010/hn10_all.sas7bdat", encoding = "cp949")
+kn11 <- read_sas("~/dataset/knhanes_raw/2011/hn11_all.sas7bdat", encoding = "cp949")
+kn12 <- read_sas("~/dataset/knhanes_raw/2012/hn12_all.sas7bdat", encoding = "cp949")
+kn13 <- read_sas("~/dataset/knhanes_raw/2013/hn13_all.sas7bdat", encoding = "cp949")
+kn14 <- read_sas("~/dataset/knhanes_raw/2014/hn14_all.sas7bdat", encoding = "cp949")
+kn15 <- read_sas("~/dataset/knhanes_raw/2015/hn15_all.sas7bdat", encoding = "cp949")
+kn16 <- read_sas("~/dataset/knhanes_raw/2016/hn16_all.sas7bdat", encoding = "cp949")
+kn17 <- read_sas("~/dataset/knhanes_raw/2017/hn17_all.sas7bdat", encoding = "cp949")
+kn18 <- read_sas("~/dataset/knhanes_raw/2018/hn18_all.sas7bdat", encoding = "cp949")
+
+kn <- kn7 %>%
+  full_join(kn8) %>%
+  full_join(kn9) %>%
+  full_join(kn10) %>%
+  full_join(kn11) %>%
+  full_join(kn12) %>%
+  full_join(kn13) %>%
+  full_join(kn14) %>%
+  full_join(kn15) %>%
+  full_join(kn16) %>%
+  full_join(kn17) %>%
+  full_join(kn18)
+colnames(kn)
+
+kn_sel <- kn %>%
+  select(c(ID, HE_DM, HE_HP, DE1_pt, DI1_pt)) %>%
+  rename(
+    id = "ID",
+  ) %>%
+  mutate(
+    dm = ifelse(HE_DM==3&DE1_pt==1,1,0),
+    htn = ifelse(HE_HP==3&DI1_pt==1,1,0)
+  ) %>%
+  select(c(id,dm,htn))
+length(unique(kn_sel$id))
+glimpse(kn_sel)
+```
+
+
+```{r, update dm, htn of cha}
+glimpse(old)
+table(
+  filter(old, dm==1)$from
+)
+
+table(
+  filter(old, htn==1)$from
+)
+
+old_id <- old %>%
+  mutate(
+    id = as.character(id)
+  )
+glimpse(old_id)
+
+new <- old_id %>%
+  left_join(kn_sel, by="id")
+glimpse(new)
+
+table(new$dm.y, exclude = F)
+table(new$htn.y, exclude = F)
+
+df_new <- new %>%
+  mutate(
+    dm = ifelse(from=="knhanes",dm.y,dm.x),
+    htn = ifelse(from=="knhanes",htn.y,htn.x)
+  ) %>%
+  select(-c(dm.x, dm.y, htn.x, htn.y)) %>%
+  unique()
+glimpse(df_new)
+
+#check dm
+table(filter(old, dm==1)$from)
+table(filter(df_new, dm==1)$from)
+
+#check htn
+table(filter(old, htn==1)$from)
+table(filter(df_new, htn==1)$from)
+```
+
+```{r, write dataset}
+#write.csv(df_new, "~/proj_ua/data/chasv_development.v2.2.csv", fileEncoding = "utf-8", row.names = F)
+```

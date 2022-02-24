@@ -1,0 +1,97 @@
+---
+title: "propensity score matching, SEVERANCE age vs CHA age"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()`"
+---
+
+
+```{r}
+# dataload
+
+cha <- read.csv("~/proj_ua/data/cha_test_psm.csv")
+sv <- read.csv("~/proj_ua/data/df_ys_new_v2.csv") %>%
+  rename(
+    id = "patient_id"
+  )
+
+glimpse(cha)
+glimpse(sv)
+
+cha_sub1 <- cha %>%
+  filter(he_upro<2 & he_uglu<1) %>%
+  select(c(colnames(sv))) %>%
+  mutate(
+    sv = 0
+  )
+
+sv_sub1 <- sv %>%
+  filter(he_upro<2 & he_uglu<1) %>%
+  mutate(
+    sv = 1
+  )
+
+glimpse(cha_sub1)
+glimpse(sv_sub1)
+```
+
+
+```{r, make a source dataframe}
+df <- rbind(sv_sub1, cha_sub1)
+glimpse(df)
+```
+
+```{r, check baseline statistics}
+library(knitr)
+library(MatchIt)
+library(pacman)
+library(labelled)
+library(optmatch)
+set.seed(0)
+pacman::p_load(tableone)
+
+name_list <- colnames(df)[-c(1,11)]
+name_list
+
+tbl <- CreateTableOne(vars = c(name_list),
+                        data = df,
+                        factorVars = c(name_list[c(1,9)]),
+                        strata = "sv") %>%
+  print()
+
+colnames(tbl)[1:2] <- c("CHA", "SEVERANCE")
+kable(tbl, align = 'c',caption = "Base")
+```
+#psm
+```{r}
+psm_cha_ys <- matchit(sv ~ age, data = df, method = "nearest")
+```
+
+#result of psm
+```{r}
+summary(psm_cha_ys)
+plot(psm_cha_ys, type = "jitter", interactive = F)
+```
+
+#result table of psm
+```{r}
+df_psm_cha_ys <- match.data(psm_cha_ys)
+
+tbl_cha_ys2 <- CreateTableOne(vars = c(name_list),
+                     data = df_psm_cha_ys,
+                     factorVars = c(name_list[c(1,9)]),
+                     strata = "sv") %>%
+  print()
+colnames(tbl_cha_ys2)[1:2] <- c("CHA", "SEVERANCE")
+kable(tbl_cha_ys2, align = "c", caption = "PSM (Age)")
+```
+
+#save as write.csv
+```{r}
+df_psm <- df %>%
+  filter(id %in% df_psm_cha_ys$id)
+
+glimpse(df_psm)
+
+write.csv(df_psm, "~/proj_ua/data/df_cha_sv_sub1_age_psm.csv", row.names = F, fileEncoding = "utf-8")
+```

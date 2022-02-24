@@ -1,0 +1,129 @@
+---
+title: "merging knhanes and cha + leucocyte update uro"
+output: html_notebook
+---
+#merge dataset cha(new uro) + knhanes(new version)
+##210314
+
+#load dataset
+```{r}
+library(dplyr)
+
+kn <- read.csv("~/proj_ua/data/knhanes_12y.v1.csv", fileEncoding = "utf-8") %>%
+  filter(age<80) %>%
+  unique()
+cha <- read.csv("~/proj_ua/data/cha_ua_dataset_v3.csv", fileEncoding = "utf-8") %>%
+  unique()
+
+glimpse(kn)
+glimpse(cha)
+```
+
+#shynchronization of colname
+```{r}
+cha_colname <- cha %>%
+  filter(age>0) %>%
+  rename(
+    "id" = patient_id,
+    "he_uph" = ph,
+    "he_unitr" = nitrite,
+    "he_usg" = sg,
+    "he_upro" = protein,
+    "he_uglu" = glucose,
+    "he_uket" = ketone,
+    "he_ubil" = bilirubin,
+    "he_ubld" = blood,
+    "he_uro" = urobilinogen
+  ) %>%
+  select(id, male, age, eGFR_ab, eGFR_ckd, 
+         he_uph, he_unitr, he_usg, he_upro, he_uglu, he_uket, he_ubil, he_ubld, he_uro, leucocyte) %>%
+  unique()
+
+glimpse(cha_colname)
+summary(cha_colname)
+
+dim(cha_colname)
+dim(unique(cha_colname))
+
+```
+
+#checking and encoding each variable
+```{r}
+#knhanes
+for(i in 8:18) {
+  print(colnames(kn[i]))
+  print(table(kn[,i]))
+}
+```
+
+```{r}
+#cha
+for(i in 2:15) {
+  print(colnames(cha_colname[i]))
+  print(table(cha_colname[,i]))
+}
+```
+
+#encoding specific gravity
+```{R}
+kn_en <- kn %>%
+  mutate(
+    he_usg = ifelse(he_usg<=1.007, 1.005, 
+                    ifelse(he_usg>=1.008 & he_usg<=1.012, 1.010,
+                           ifelse(he_usg>=1.013 & he_usg<=1.017, 1.015,
+                                  ifelse(he_usg>=1.018 & he_usg<=1.022, 1.020,
+                                         ifelse(he_usg>=1.023 & he_usg<=1.027, 1.025, 1.030))))),
+    leucocyte = NA
+  )
+
+table(kn_en$he_usg)
+glimpse(kn_en)
+```
+
+#merging dataset using rbind
+```{r}
+library(stringr)
+
+df <- rbind(cha_colname, kn_en[,-c(2:5)]) %>%
+  unique()
+glimpse(df)
+
+df_arr <- df[,c(1,4,5,2,3,6:15)] %>%
+  mutate(
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  ) %>%
+  unique()
+
+glimpse(df_arr)
+table(df_arr$eGFR_ab)
+
+#write.csv(df_arr, "~/proj_ua/data/ua_full_10types_new.v5.csv", fileEncoding = "utf-8", row.names = F)
+```
+
+#summary table
+##210314
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+library(stringr)
+
+df_summary <- df_arr %>%
+  mutate(
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    from = ifelse(str_detect(id, "[a-zA-Z]")==T, "knhanes", "cha")
+  )
+
+glimpse(df_summary)
+
+stat_tbl <- tableby(from~ . ,data=df_summary[,-1])
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```
+

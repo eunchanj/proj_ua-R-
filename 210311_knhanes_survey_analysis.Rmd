@@ -1,0 +1,142 @@
+---
+title: "knhanes svydesign analysis"
+output: html_notebook
+---
+
+```{r load dataset}
+library(dplyr)
+
+kn <- read.csv("~/proj_ua/data/kn_ua_svy.csv", fileEncoding = "utf-8") %>%
+  filter(age>=18 & age<80) %>%
+  mutate(
+    p = 1,
+    level = ifelse(age<60,0,1)
+  )
+glimpse(kn)
+```
+```{r survey library}
+library(survey)
+kn_svy <- svydesign(data = kn, id = ~psu+id_fam, strata = ~kstrata, weights = ~wt_12y)
+```
+
+```{r all prevalence}
+#prevalence <60 , <45
+total <- svyby(formula = ~p, by = ~level, design= kn_svy, FUN = svytotal, na.rm = TRUE)
+
+pre60 <- svytotal(~eGFR_ab, kn_svy, na.rm=TRUE)[[1]] / (total[1,2] + total[2,2])*100
+pre60_mean <- svymean(~eGFR_ab, kn_svy, na.rm=T)[[1]]*100
+
+pre45 <- svytotal(~eGFR_ab45, kn_svy, na.rm=TRUE)[[1]] / (total[1,2] + total[2,2])*100
+pre45_mean <- svymean(~eGFR_ab45, kn_svy, na.rm=T)[[1]]*100
+
+print("total all prevalence of 60 =");pre60
+print("mean all prevalence of 60 =");pre60_mean
+print("total all prevalence of 45 =");pre45
+print("mean method all prevalence of 45 =");pre45_mean
+```
+```{r age 18-59 prevalence}
+#prevalence <60 , <45
+age_pv <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy, FUN = svytotal, na.rm = TRUE)
+age_mean <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy, FUN = svymean, na.rm = TRUE)
+
+pre60_age0 <- age_pv[1,2] / total[1,2] * 100
+pre60_age0_mean <- age_mean[1,2] *100
+pre60_age1 <- age_pv[2,2] / total[2,2] * 100
+pre60_age1_mean <- age_mean[2,2] *100
+
+print("total age 18-59 prevalence of 60 =");pre60_age0
+print("mean age 18-59 prevalence of 60 =");pre60_age0_mean
+print("total age 60-79 prevalence of 60 =");pre60_age1
+print("mean age 60-79 prevalence of 60 =");pre60_age1_mean
+
+pre45_age0 <- age_pv[1,3] / total[1,2] * 100
+pre45_age0_mean <- age_mean[1,3] *100
+pre45_age1 <- age_pv[2,3] / total[2,2] * 100
+pre45_age1_mean <- age_mean[2,3] *100
+
+print("total age 18-59 prevalence of 45 =");pre45_age0
+print("mean age 18-59 prevalence of 45 =");pre45_age0_mean
+print("total age 60-79 prevalence of 45 =");pre45_age1
+print("mean age 60-79 prevalence of 45 =");pre45_age1_mean
+```
+
+```{r}
+n <- c(total[1,2], total[2,2], total[1,2]+total[2,2])
+total_60 <- c(pre60_age0, pre60_age1, pre60)
+total_45 <- c(pre45_age0, pre45_age1, pre45)
+mean_60 <- c(pre60_age0_mean, pre60_age1_mean, pre60_mean)
+mean_45 <- c(pre45_age0_mean, pre45_age1_mean, pre45_mean)
+
+df_pre <- data_frame(n, total_60, mean_60, total_45, mean_45) %>%
+  mutate(
+    nt60 = n * (total_60/100),
+    nm60 = n * (mean_60/100),
+    nt45 = n * (total_45/100),
+    nm45 = n * (mean_45/100),
+  )
+
+```
+
+```{r survey library subset}
+library(survey)
+kn_svy_sub <- subset(kn_svy, (!is.na(he_crea) | !is.na(he_uph) | !is.na(he_unitr) | !is.na(he_usg) | !is.na(he_upro) 
+                              | !is.na(he_uglu) | !is.na(he_uket) | !is.na(he_ubil) | !is.na(he_ubld) | !is.na(he_uro)))
+```
+
+```{r all prevalence sb}
+#prevalence <60 , <45
+total_sb <- svyby(formula = ~p, by = ~level, design= kn_svy_sub, FUN = svytotal, na.rm = TRUE)
+
+pre60_sb <- svytotal(~eGFR_ab, kn_svy_sub, na.rm=TRUE)[[1]] / (total_sb[1,2] + total_sb[2,2])*100
+pre60_mean_sb <- svymean(~eGFR_ab, kn_svy_sub, na.rm=T)[[1]]*100
+
+pre45_sb <- svytotal(~eGFR_ab45, kn_svy_sub, na.rm=TRUE)[[1]] / (total_sb[1,2] + total_sb[2,2])*100
+pre45_mean_sb <- svymean(~eGFR_ab45, kn_svy_sub, na.rm=T)[[1]]*100
+
+print("sb total all prevalence of 60 =");pre60_sb
+print("sb mean all prevalence of 60 =");pre60_mean_sb
+print("sb total all prevalence of 45 =");pre45_sb
+print("sb mean method all prevalence of 45 =");pre45_mean_sb
+```
+```{r age 18-59 prevalence sb}
+#prevalence <60 , <45
+age_pv_sb <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy_sub, FUN = svytotal, na.rm = TRUE)
+age_mean_sb <- svyby(formula = ~eGFR_ab + eGFR_ab45, by = ~level, design= kn_svy_sub, FUN = svymean, na.rm = TRUE)
+
+pre60_age0_sb <- age_pv_sb[1,2] / total_sb[1,2] * 100
+pre60_age0_mean_sb <- age_mean_sb[1,2] *100
+pre60_age1_sb <- age_pv_sb[2,2] / total_sb[2,2] * 100
+pre60_age1_mean_sb <- age_mean_sb[2,2] *100
+
+print("sb total age 18-59 prevalence of 60 =");pre60_age0_sb
+print("sb mean age 18-59 prevalence of 60 =");pre60_age0_mean_sb
+print("sb total age 60-79 prevalence of 60 =");pre60_age1_sb
+print("sb mean age 60-79 prevalence of 60 =");pre60_age1_mean_sb
+
+pre45_age0_sb <- age_pv_sb[1,3] / total_sb[1,2] * 100
+pre45_age0_mean_sb <- age_mean_sb[1,3] *100
+pre45_age1_sb <- age_pv_sb[2,3] / total_sb[2,2] * 100
+pre45_age1_mean_sb <- age_mean_sb[2,3] *100
+
+print("sb total age 18-59 prevalence of 45 =");pre45_age0_sb
+print("sb mean age 18-59 prevalence of 45 =");pre45_age0_mean_sb
+print("sb total age 60-79 prevalence of 45 =");pre45_age1_sb
+print("sb mean age 60-79 prevalence of 45 =");pre45_age1_mean_sb
+```
+
+```{r}
+n_sb <- c(total_sb[1,2], total_sb[2,2], total_sb[1,2]+total_sb[2,2])
+total_60_sb <- c(pre60_age0_sb, pre60_age1_sb, pre60_sb)
+total_45_sb <- c(pre45_age0_sb, pre45_age1_sb, pre45_sb)
+mean_60_sb <- c(pre60_age0_mean_sb, pre60_age1_mean_sb, pre60_mean_sb)
+mean_45_sb <- c(pre45_age0_mean_sb, pre45_age1_mean_sb, pre45_mean_sb)
+
+df_pre_sb <- data_frame(n_sb, total_60_sb, mean_60_sb, total_45_sb, mean_45_sb) %>%
+  mutate(
+    nt60 = n_sb * (total_60_sb/100),
+    nm60 = n_sb * (mean_60_sb/100),
+    nt45 = n_sb * (total_45_sb/100),
+    nm45 = n_sb * (mean_45_sb/100),
+  )
+
+```

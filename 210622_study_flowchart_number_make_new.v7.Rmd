@@ -1,0 +1,112 @@
+---
+title: "study flowchart number"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()'"
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+raw_cha <- read_excel("proj_ua/data/raw_cha.xlsx",
+                      col_types = c("text", "skip", "text", 
+                                    "numeric", "skip", "skip", "skip", 
+                                    "skip", "text", "skip", "text", "text", 
+                                    "text", "text", "text", "text", "text", 
+                                    "text", "text", "text", "skip", "skip"))
+
+glimpse(raw_cha)
+
+raw_cha2 <- raw_cha %>%
+  filter(!is.na(LU10101)) %>%
+  filter(!is.na(LU10102)) %>%
+  filter(!is.na(LU10103)) %>%
+  filter(!is.na(LU10104)) %>%
+  filter(!is.na(LU10105)) %>%
+  filter(!is.na(LU10106)) %>%
+  filter(!is.na(LU10107)) %>%
+  filter(!is.na(LU10108)) %>%
+  filter(!is.na(LU10109)) %>%
+  filter(!is.na(LU10110)) %>%
+  filter(!is.na(LC115))
+nrow(raw_cha) - nrow(raw_cha2)
+
+raw_cha3 <- raw_cha2[!duplicated(raw_cha2$등록번호), ]
+nrow(raw_cha2) - nrow(raw_cha3)
+
+raw_cha4 <- raw_cha3 %>%
+  filter(나이>=18 & 나이<=90) 
+nrow(raw_cha3) - nrow(raw_cha4)
+
+for(i in 3:14) {
+  print(colnames(raw_cha4[i]))
+  print(table(raw_cha4[,i]))
+}
+```
+
+```{r}
+cha_ua <- read.csv("~/proj_ua/data/cha_ua_dataset_v3.csv")
+
+glimpse(cha_ua)
+
+cha_ua2 <- cha_ua %>%
+  filter(age>=18 & age<=90) %>%
+  unique()
+glimpse(cha_ua2)
+length(unique(cha_ua2$patient_id))
+
+
+df_ori <- read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv")
+
+df_ori %>%
+  filter(from=="knhanes") %>%
+  nrow()
+
+df_ori %>%
+  filter(from=="cha") %>%
+  nrow()
+
+df_new <- df_ori[!duplicated(df_ori$id), ]
+
+df_new %>%
+  filter(from=="knhanes") %>%
+  nrow()
+
+df_new %>%
+  filter(from=="cha") %>%
+  filter(age>=18 & age <=90) %>%
+  nrow()
+
+df_new_vari <- df_new %>%
+  mutate(
+    he_ubil = ifelse(he_ubil==1, 0, 
+                     ifelse(he_ubil==5, 4, he_ubil)),
+    he_uro = ifelse(he_uro==4, 3, he_uro),
+    he_uro = ifelse(he_uro==0, 0, he_uro + 1)
+  )
+
+table(df_new[df_new$from=="cha",]$he_ubil)
+table(df_new_vari[df_new_vari$from=="cha",]$he_ubil)
+
+table(df_new[df_new$from=="cha",]$he_uro)
+table(df_new_vari[df_new_vari$from=="cha",]$he_uro)
+
+table(df_new[df_new$from=="knhanes",]$he_ubil)
+table(df_new_vari[df_new_vari$from=="knhanes",]$he_ubil)
+
+table(df_new[df_new$from=="knhanes",]$he_uro)
+table(df_new_vari[df_new_vari$from=="knhanes",]$he_uro)
+
+table(df_new[df_new$from=="cha",]$leucocyte)
+
+df_new_age_cha <- df_new_vari %>%
+  filter(from=="cha"&age>=18&age<=90)
+
+df_new_age_kn <- df_new_vari %>%
+  filter(from=="knhanes"&age>=18&age<80)
+
+df_new_final <- rbind(df_new_age_cha, df_new_age_kn)
+glimpse(df_new_final)
+
+#write.csv(df_new_final, "~/proj_ua/data/ua_full_10types_new.v7.csv", fileEncoding = "utf-8", row.names = F)
+```

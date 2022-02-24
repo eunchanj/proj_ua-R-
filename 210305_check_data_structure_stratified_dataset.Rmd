@@ -1,0 +1,36 @@
+---
+title: "Train test split and manual data structure testing"
+output: html_notebook
+---
+
+#tts statisctics
+##210305
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(arsenal)
+library(stringr)
+
+df <- read.csv("~/tts_test.csv", fileEncoding = "utf-8")
+
+glimpse(df)
+
+df_summary <- df %>%
+   mutate(
+    eGFR_ab = as.character(eGFR_ab),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro)
+  ) %>%
+  select(c(eGFR_ab, eGFR_ckd, male, age, he_uph, he_unitr, he_usg, he_upro, he_uglu, he_uket, he_ubil, he_ubld, by)) %>%
+  filter(by=="manual_train" | by=="auto_train")
+
+glimpse(df_summary)
+
+stat_tbl <- tableby(by~ . ,data=df_summary)
+summary(stat_tbl)
+kable(summary(stat_tbl))
+```

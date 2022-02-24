@@ -1,0 +1,106 @@
+---
+title: "comparison p values using manual code vs DeLong method and booststrap from pRCO package, new model(economical model) version"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+```{r, load dataset}
+library(dplyr)
+library(pROC)
+
+df <- read.csv("~/proj_ua/data/df_pvalue_new.csv")
+df45 <- read.csv("~/proj_ua/data/df_pvalue45_new.csv")
+glimpse(df)
+glimpse(df45)
+
+df_in <- df %>%
+  filter(class=="in")
+df_ip <- df %>%
+  filter(class=="ip")
+df_en <- df %>%
+  filter(class=="en")
+df_ep <- df %>%
+  filter(class=="ep")
+
+print("eGFR60 model")
+print("internal non-protein"); dim(df_in)
+print("internal protein"); dim(df_ip)
+print("external non-protein"); dim(df_en)
+print("external protein"); dim(df_ep)
+
+df45_in <- df45 %>%
+  filter(class=="in")
+df45_ip <- df45 %>%
+  filter(class=="ip")
+df45_en <- df45 %>%
+  filter(class=="en")
+df45_ep <- df45 %>%
+  filter(class=="ep")
+
+print("eGFR45 model")
+print("internal non-protein"); dim(df45_in)
+print("internal protein"); dim(df45_ip)
+print("external non-protein"); dim(df45_en)
+print("external protein"); dim(df45_ep)
+```
+
+```{r, 60 model, calculated roc auc}
+# 1. roc sources
+roc_in <- roc(df_in$true, df_in$prob)
+roc_ip <- roc(df_ip$true, df_ip$prob)
+roc_en <- roc(df_en$true, df_en$prob)
+roc_ep <- roc(df_ep$true, df_ep$prob)
+
+print("60model internal np, delong");ci.auc(roc_in)
+print("60model internal np, bootstrap");ci.auc(roc_in, conf.level = 0.95, method = "bootstrap", boot.n = 10000)
+print("60model internal p, delong");ci.auc(roc_ip)
+print("60model internal p, bootstrap");ci.auc(roc_ip, conf.level = 0.95, method = "bootstrap", boot.n = 10000)
+# 2. roc.test
+
+## test .. 
+#roc_in_in <- roc.test(roc_in, roc_in, method="bootstrap", boot.n=10000)
+
+## internal non-protein vs internal protein
+roc_in_ip_delong <- roc.test(roc_in, roc_ip)
+roc_in_ip <- roc.test(roc_in, roc_ip, method="bootstrap", boot.n=10000)
+print(roc_in_ip_delong);roc_in_ip
+```
+```{r, 45 model, calculated roc auc}
+# 1. roc sources
+roc45_in <- roc(df45_in$true, df45_in$prob)
+roc45_ip <- roc(df45_ip$true, df45_ip$prob)
+roc45_en <- roc(df45_en$true, df45_en$prob)
+roc45_ep <- roc(df45_ep$true, df45_ep$prob)
+
+print("45model internal np");ci.auc(roc45_in)
+print("45model internal np");ci.auc(roc45_in, conf.level = 0.95, method = "bootstrap", boot.n = 10000)
+print("45model internal p");ci.auc(roc45_ip)
+print("45model internal p");ci.auc(roc45_ip, conf.level = 0.95, method = "bootstrap", boot.n = 10000)
+
+# 2. roc.test
+
+## test .. 
+#roc45_in_in <- roc.test(roc45_in, roc45_in, method="bootstrap", boot.n=10000)
+#roc45_in_in
+
+## internal non-protein vs internal protein
+roc45_in_ip_delong <- roc.test(roc45_in, roc45_ip)
+roc45_in_ip <- roc.test(roc45_in, roc45_ip, method="bootstrap", boot.n=10000)
+print(roc45_in_ip_delong);roc45_in_ip
+```
+
+```{r, 60 vs 45}
+roc60_45_np_delong <- roc.test(roc_in, roc45_in)
+roc60_45_np <- roc.test(roc_in, roc45_in, method="bootstrap", boot.n=10000)
+print(roc60_45_np_delong);roc60_45_np
+
+roc60_45_p_delong <- roc.test(roc_ip, roc45_ip)
+roc60_45_p <- roc.test(roc_ip, roc45_ip, method="bootstrap", boot.n=10000)
+print(roc60_45_p_delong);roc60_45_p
+```
+
+```{r, cai squre test, case numbers and prevalence}
+
+
+```

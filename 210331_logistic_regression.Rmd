@@ -1,0 +1,35 @@
+---
+title: "logistic regression CHA dataset"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic.csv")
+
+glimpse(df)
+
+df_glm <- df %>%
+  select(-eGFR_ckd)
+
+glimpse(df_glm)
+```
+```{r glm }
+glm <- glm(eGFR_ab ~., family=binomial, data=df_glm)
+summary(glm)
+```
+```{r glm interaction}
+glm2 <- glm(eGFR_ab ~ male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte + age +
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+           family=binomial, data=df_glm)
+summary(glm2)
+```
+
+```{r OR table}
+library(gtsummary)
+
+tbl_regression(glm2, exponentiate = TRUE)
+```
+

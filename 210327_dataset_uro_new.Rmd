@@ -1,0 +1,32 @@
+---
+title: "update urobilinogen dataset"
+output: html_notebook
+author: chandler
+date: "`r Sys.time()`"
+---
+
+
+```{r}
+library(dplyr)
+old <- read.csv("~/proj_ua/data/ua_full_10types_new.v5.csv")
+
+glimpse(old)
+table(old$he_uro)
+table(old$from)
+
+old_uro <- old %>%
+  mutate(
+    he_uro = ifelse(he_uro==0 | he_uro==1,1,he_uro)
+  )
+table(old_uro$he_uro)
+
+old_uro_new <- old_uro %>%
+  mutate(
+    he_uro = he_uro -1
+  )
+table(old_uro_new$he_uro)
+glimpse(old_uro_new)
+
+#write.csv(old_uro_new, "~/proj_ua/data/ua_full_10types_new.v6.csv", fileEncoding = "utf-8", row.names = F)
+```
+

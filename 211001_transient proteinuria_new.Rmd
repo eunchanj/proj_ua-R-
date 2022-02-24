@@ -1,0 +1,123 @@
+---
+title: "transient proteinuria"
+output: html_notebook
+author: "chandler"
+time: "`r Sys.time()`"
+---
+
+
+```{r, load data}
+library(dplyr)
+library(readxl)
+
+cha <- read.csv("~/proj_ua/data/cha_ua_dataset_v3.csv", fileEncoding = "utf-8") %>%
+  filter(age>=18&age<=90) %>%
+  filter(!is.na(.)) %>%
+  select(c(patient_id, ua_date, protein)) %>%
+  rename(
+    date_ua = "ua_date"
+  ) %>%
+  mutate(
+    patient_id = as.character(patient_id),
+    date_ua = as.Date(date_ua)
+  ) %>%
+  unique()
+glimpse(cha)
+
+
+
+cha_TP <- read_excel("~/proj_ckdai/data/안과 의료정보이용신청_조건수정_20210903.xlsx",
+                       col_types = c("text", "text", "text", 
+                                     "skip", "skip", "skip", "text", "skip", 
+                                     "skip", "skip", "skip", "skip", "text", 
+                                     "skip", "skip", "skip", "skip", "skip", 
+                                     "skip", "skip", "date", "text")) %>%
+  rename(
+    patient_id = "환자번호",
+    date_ua = "LC115 검사실시일",
+    protein = "LU10105",
+    date_ua2 = "LU10105실시일",
+    protein2 = "LU10105결과",
+  ) %>%
+  select(c(patient_id, date_ua, protein, date_ua2, protein2)) %>%
+  mutate(
+    patient_id = as.character(patient_id),
+    date_ua = as.Date(date_ua, format="%Y-%m-%d"),
+    protein = ifelse(protein=="-",0,
+                         ifelse(protein=="+-",1,
+                                ifelse(protein=="1+",2,
+                                       ifelse(protein=="2+",3,
+                                              ifelse(protein=="3+",4,5
+                                                     ))))),
+    date_ua2 = as.Date(format(date_ua2, format="%Y-%m-%d")),
+    protein2 = ifelse(protein2=="-",0,
+                         ifelse(protein2=="+-",1,
+                                ifelse(protein2=="1+",2,
+                                       ifelse(protein2=="2+",3,
+                                              ifelse(protein2=="3+",4,5
+                                                     )))))
+    
+  ) %>%
+  unique() %>%
+  arrange(patient_id)
+glimpse(cha_TP)
+
+
+cha_TP2 <- read_excel("~/proj_ckdai/data/안과_의료정보이용신청_20210820.xlsx", sheet = 2) %>%
+  rename(
+    patient_id = "등록번호",
+    date_ua = "LC115시행일",
+    protein = "LU10105",
+    date_ua2 = "LU10105실시일",
+    protein2 = "LU10105결과",
+  ) %>%
+  select(c(patient_id, date_ua, protein, date_ua2, protein2)) %>%
+  mutate(
+    #date_ua = as.Date(date_ua, format="%Y-%m-%d"),
+    patient_id = as.character(patient_id),
+    protein = ifelse(protein=="-",0,
+                         ifelse(protein=="+-",1,
+                                ifelse(protein=="1+",2,
+                                       ifelse(protein=="2+",3,
+                                              ifelse(protein=="3+",4,5
+                                                     ))))),
+    #date_ua2 = as.Date(format(date_ua2, format="%Y-%m-%d")),
+    protein2 = ifelse(protein2=="-",0,
+                         ifelse(protein2=="+-",1,
+                                ifelse(protein2=="1+",2,
+                                       ifelse(protein2=="2+",3,
+                                              ifelse(protein2=="3+",4,5
+                                                     )))))
+    
+  ) %>%
+  mutate(
+    duration = difftime(date_ua2, date_ua, units = "days")
+  ) %>%
+  filter(duration!=0) %>%
+  select(-duration) %>%
+  unique()
+
+glimpse(cha_TP2)
+```
+
+```{r merge all dataset}
+cha_proteinuria <- cha %>%
+  filter(protein>1)
+
+df <- cha_proteinuria %>%
+  left_join(cha_TP[-2], by = c("patient_id", "protein")) %>%
+  left_join(cha_TP2[-2], by = c("patient_id", "protein")) %>%
+  filter(!is.na(protein2.x), !is.na(protein2.y)) %>%
+  mutate(
+    protein2 = ifelse(is.na(protein2.y), protein2.x, protein2.y),
+    t_proteinuria = ifelse(protein>1 & protein2<2, 1, 0)
+  ) %>%
+  unique()
+
+table(df$protein2, exclude = F)
+table(df$t_proteinuria, exclude = F)
+
+paste("can cases, n :", nrow(df))
+paste("re-pro/pro, % :", nrow(df)/nrow(cha_proteinuria)*100)
+paste("transient proteinuria ratio, % :", table(df$t_proteinuria, exclude = F)[[2]]/nrow(df)*100)
+```

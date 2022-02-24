@@ -1,0 +1,107 @@
+#make balanced dataset for Ua model
+
+ ##210115
+ 
+#load dataset and filtering
+```{r}
+library(dplyr)
+
+df_ori <- read.csv("~/KNHANES_eGFR/eGFR_urine.v2.csv", fileEncoding = "utf-8")
+
+df_sub <- df_ori %>%
+  filter(age>=18)
+
+glimpse(df_sub)
+```
+
+#check statistical 
+```{r}
+library(knitr)
+library(MatchIt)
+library(pacman)
+library(labelled)
+library(optmatch)
+set.seed(0)
+pacman::p_load(tableone)
+
+name_list <- colnames(df_sub)[6:16]
+name_list
+
+df_ua <- CreateTableOne(vars = c(name_list), 
+                        data = df_sub, 
+                        factorVars = c(name_list[c(1,4)]), 
+                        strata = "eGFR_ab") %>% 
+  print()
+
+kable(df_ua, align = 'c', caption = "base table")
+```
+#psm
+```{r}
+psm <- matchit(eGFR_ab ~ age + male, data = df_sub, method = "nearest")
+```
+
+#result of psm
+```{r}
+summary(psm)
+plot(psm, type = "jitter", interactive = F)
+```
+
+#result table of psm
+```{r}
+df_psm <- match.data(psm)
+
+t_2 <- CreateTableOne(vars = c(name_list),
+                     data = df_psm,
+                     factorVars = c(name_list[c(1,4)]),
+                     strata = "eGFR_ab") %>%
+  print()
+
+kable(t_2, align = "c")
+```
+
+#save as write.csv
+```{r}
+#write.csv(df_psm, "~/KNHANES_eGFR/eGFR_urine_psm.v1.csv", row.names = F, fileEncoding = "utf-8")
+```
+
+#finding ratio of p-val <0.05
+
+#age p-val deadline : ratio=3
+```{r}
+psm_r3 <- matchit(eGFR_ab ~ age + male, data = df_sub, method = "nearest", ratio=3)
+
+#dataframe matched data
+df_psm_r3 <- match.data(psm_r3)
+
+#table matched data
+r3 <- CreateTableOne(vars = c(name_list),
+                     data = df_psm_r3,
+                     factorVars = c(name_list[c(1,4)]),
+                     strata = "eGFR_ab") %>%
+  print()
+
+kable(r3, align = "c")
+
+#save as csv
+#write.csv(df_psm_r3, "~/KNHANES_eGFR/eGFR_urine_psm.v2.csv", row.names = F, fileEncoding = "utf-8")
+```
+
+# age p-val <0.05 : ratio=4
+```{r}
+psm_r4 <- matchit(eGFR_ab ~ age + male, data = df_sub, method = "nearest", ratio=4)
+
+#dataframe matched data
+df_psm_r4 <- match.data(psm_r4)
+
+#table matched data
+r4 <- CreateTableOne(vars = c(name_list),
+                     data = df_psm_r4,
+                     factorVars = c(name_list[c(1,4)]),
+                     strata = "eGFR_ab") %>%
+  print()
+
+kable(r4, align = "c")
+
+#save as csv
+#write.csv(df_psm_r4, "~/KNHANES_eGFR/eGFR_urine_psm.v3.csv", row.names = F, fileEncoding = "utf-8")
+```

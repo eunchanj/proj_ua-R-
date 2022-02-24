@@ -1,0 +1,99 @@
+---
+title: "make demographic table addtion proteinuria and CKD"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+#demographic table
+```{r}
+#https://thatdatatho.com/2018/08/20/easily-create-descriptive-summary-statistic-tables-r-studio/
+library(dplyr)
+library(arsenal)
+library(knitr)
+
+cha_kn <-read.csv("~/proj_ua/data/ua_full_10types_new.v6.csv", fileEncoding = 'utf-8')
+
+glimpse(cha_kn)
+```
+```{r}
+cha_kn2 <- cha_kn %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0),
+    proteinuria = ifelse(he_upro<2,0,1),
+    ckd = ifelse(eGFR_ab==1|proteinuria==1,1,0),
+    ckd2 = ifelse(eGFR_ab==1&proteinuria==1,"proteinuria",
+                  ifelse(eGFR_ab==1&proteinuria!=1, "non-proteinuria",
+                         ifelse(eGFR_ab==0&proteinuria==1, "isolated proteinuria", "normal"))),
+    np_ckd = ifelse(eGFR_ab==1&proteinuria==0,1,0),
+    is_ckd = ifelse(eGFR_ab==0&proteinuria==1,1,0),
+    p_ckd = ifelse(eGFR_ab==1&proteinuria==1,1,0)
+  )
+
+glimpse(cha_kn2)
+```
+```{r}
+df_summary <- cha_kn2 %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    proteinuria = as.character(proteinuria),
+    ckd = as.character(ckd),
+    np_ckd = as.character(np_ckd),
+    is_ckd = as.character(is_ckd),
+    p_ckd = as.character(p_ckd)
+#    he_upro = as.character(he_upro),
+#    he_uglu = as.character(he_uglu),
+#    he_uket = as.character(he_uket),
+#    he_ubil = as.character(he_ubil),
+#    he_ubld = as.character(he_ubld),
+#    he_uro = as.character(he_uro),
+#    leucocyte = as.character(leucocyte),
+  ) %>%
+  filter(age>=18 & age<=90) %>%
+  select(-c(id))
+
+glimpse(df_summary)
+#df_summary <- df_summary[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary)
+```
+
+```{r stat_tbl1}
+stat_tbl1 <- tableby(from~ age + male + eGFR_ab + eGFR_ab45 + eGFR_ckd + he_unitr + he_usg + he_uph + proteinuria + ckd + ckd2 + np_ckd + is_ckd + p_ckd, data=df_summary, total=FALSE)
+summary(stat_tbl1, text=TRUE)
+kable(summary(stat_tbl1))
+```
+
+```{r stat_tbl2}
+stat_tbl2 <- tableby(from~ he_upro + he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, data=df_summary, total=F, numeric.stats=c("medianrange","q1q3"), numeric.test="kwt")
+summary(stat_tbl2, test=T)
+```
+
+```{r urine dipstick tests, %}
+df_summary2 <- df %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab = as.character(eGFR_ab),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    he_upro = as.character(he_upro),
+    he_uglu = as.character(he_uglu),
+    he_uket = as.character(he_uket),
+    he_ubil = as.character(he_ubil),
+    he_ubld = as.character(he_ubld),
+    he_uro = as.character(he_uro),
+    leucocyte = as.character(leucocyte),
+    he_usg = as.character(he_usg),
+    he_uph = as.character(he_uph)
+  ) %>%
+  filter(age>=18) %>%
+  select(-c(id))
+
+glimpse(df_summary2)
+df_summary2 <- df_summary2[,c(4,3,1,2,16,6,5,7,8:15)]
+glimpse(df_summary2)
+
+stat_tbl1 <- tableby(from ~ he_unitr + he_usg + he_uph + he_upro + he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, data=df_summary2, total=FALSE, numeric.test="kwt")
+summary(stat_tbl1, text=TRUE)
+```

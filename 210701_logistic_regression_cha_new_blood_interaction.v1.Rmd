@@ -1,0 +1,247 @@
+---
+title: "logistic regression CHA internal validation data, non-proteinuria vs proteinuria // real testset and remove duplicated cases and set levels"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic_cha_new.v2.csv")
+glimpse(df)
+
+df_glm_non <- df %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ckd, id, from, level))
+
+df_glm_pro <- df %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ckd, id, from, level))
+
+glimpse(df_glm_non)
+glimpse(df_glm_pro)
+
+table(df$he_ubil)
+table(df$he_uro)
+table(df$leucocyte)
+```
+
+```{r glm non proteinuria}
+glm_non <- glm(eGFR_ab ~., family=binomial, data=df_glm_non)
+summary(glm_non)
+
+library(gtsummary)
+tbl_regression(glm_non, exponentiate = TRUE)
+```
+```{r glm proteinuria}
+glm_pro <- glm(eGFR_ab ~., family=binomial, data=df_glm_pro)
+summary(glm_pro)
+
+tbl_regression(glm_pro, exponentiate = TRUE)
+```
+
+
+```{r 45model}
+df45 <- read.csv("~/proj_ua/data/df_logistic_cha45_new.v2.csv")
+glimpse(df45)
+
+df45_non <- df45 %>%
+  filter(he_upro<2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level))
+glimpse(df45_non)
+
+df45_pro <- df45 %>%
+  filter(he_upro>=2) %>%
+  select(-c(eGFR_ab, eGFR_ckd, id, from, level))
+glimpse(df45_pro)
+```
+
+```{r 45model glm non-proteinuria}
+glm45_non <- glm(eGFR_ab45 ~., family=binomial, data=df45_non)
+summary(glm45_non)
+
+tbl_regression(glm45_non, exponentiate = TRUE)
+```
+
+```{r 45model glm non-proteinuria, test}
+glm45_non_t <- glm(eGFR_ab45 ~ . + he_ubld*male , family=binomial, data=df45_non)
+summary(glm45_non_t)
+
+tbl_regression(glm45_non_t, exponentiate = TRUE)
+```
+
+```{r 45model glm non-proteinuria sex CKD ratio}
+glimpse(df45_non)
+
+df45_non %>%
+  filter(eGFR_ab45==1 & male==0) %>%
+  nrow()
+
+sex_ratio <- df45_non %>%
+  mutate(
+    proteinuria = ifelse(he_upro<2,0,1),
+    ckd = ifelse(eGFR_ab45==1|proteinuria==1,1,0),
+    ckd2 = ifelse(eGFR_ab45==1&proteinuria==1,"proteinuric CKD",
+                  ifelse(eGFR_ab45==1&proteinuria!=1, "non-proteinuric CKD",
+                         ifelse(eGFR_ab45==0&proteinuria==1, "isolated proteinuric CKD", "normal"))),
+    np_ckd = ifelse(eGFR_ab45==1&proteinuria==0,1,0),
+    is_ckd = ifelse(eGFR_ab45==0&proteinuria==1,1,0),
+    p_ckd = ifelse(eGFR_ab45==1&proteinuria==1,1,0)
+  )
+
+
+sex_ratio2 <- sex_ratio %>%
+  mutate(
+    male = as.character(male),
+    eGFR_ab45 = as.character(eGFR_ab45),
+    he_unitr= as.character(he_unitr),
+    proteinuria = as.character(proteinuria),
+    ckd = as.character(ckd),
+    np_ckd = as.character(np_ckd),
+    is_ckd = as.character(is_ckd),
+    p_ckd = as.character(p_ckd)
+#    he_upro = as.character(he_upro),
+#    he_uglu = as.character(he_uglu),
+#    he_uket = as.character(he_uket),
+#    he_ubil = as.character(he_ubil),
+#    he_ubld = as.character(he_ubld),
+#    he_uro = as.character(he_uro),
+#    leucocyte = as.character(leucocyte),
+  )
+
+
+## bar graph
+sex_ratio_m <- sex_ratio2 %>%
+  filter(male==1)
+
+sex_ratio_f <- sex_ratio2 %>%
+  filter(male==0)
+
+sex45_m <- ggplot(sex_ratio_m) +
+  geom_bar(aes(x=he_ubld, fill=eGFR_ab45)
+           , position="fill", width = 0.5
+           ) +
+  #scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  #xlab("Sex") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15)) +
+  ggtitle("eGFR < 45, male")
+
+sex45_f <- ggplot(sex_ratio_f) +
+  geom_bar(aes(x=he_ubld, fill=eGFR_ab45)
+           , position="fill", width = 0.5
+           ) +
+  #scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  #xlab("Sex") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15)) +
+  ggtitle("eGFR < 45, female")
+
+sex45_m
+sex45_f
+
+## statistic test
+stat_t <- tableby(eGFR_ab45~ male , data=sex_ratio2, total=FALSE)
+summary(stat_t, text=TRUE)
+kable(summary(stat_t))
+```
+```{r blood and prevalence graph}
+
+df45_non_gb <- df45_non %>%
+  group_by(he_ubld, male) %>%
+  summarise(pre45 = mean(eGFR_ab45))
+
+gb_m <- filter(df45_non_gb, male==1)
+gb_f <- filter(df45_non_gb, male==0)
+
+plot(gb_m$he_ubld, gb_m$pre45*100, type="o", pch=19, lty=1, ylim=c(0,10),xlab="Urine blood", ylab = "eGFR<45, Prevalence(%)", xaxt="n")
+points(df45_non_gb$he_ubld, df45_non_gb$pre45*100, pch=ifelse(df45_non_gb$male==1,19,1))
+lines(gb_f$he_ubld, gb_f$pre45*100, lty=2)
+legend("topleft", pch=c(19,1),lty=c(1,2),lwd=c(1,1),legend=c("male", "female"),bty="n")
+axis(1, at=0:4, labels = c(0,1,2,3,4))
+```
+
+
+```{r correlation blood}
+corr <- df45_non[,c(10,1:9,11:13)]
+glimpse(corr)
+
+round(cor(corr),digits=3)
+
+cor.test(corr$male, corr$he_uph)
+
+
+library(corrplot)
+
+corrplot(cor(corr),
+         method = "number",
+         type = "upper"
+         )
+
+library(correlation)
+
+correlation(df45_non, 
+            include_factors = T, method="pearson")
+```
+
+
+```{r 45model glm proteinuria}
+glm45_pro <- glm(eGFR_ab45 ~., family=binomial, data=df45_pro)
+summary(glm45_pro)
+
+tbl_regression(glm45_pro, exponentiate = TRUE)
+```
+```{r 45model glm proteinuria, test}
+glm45_pro <- glm(eGFR_ab45 ~ male + age + he_uph + he_unitr + he_usg + 
+                   #he_upro + 
+                   he_uglu + he_uket + he_ubil + he_ubld + he_uro + leucocyte, family=binomial, data=df45_pro)
+summary(glm45_pro)
+
+tbl_regression(glm45_pro, exponentiate = TRUE)
+```
+```{r blood}
+library(ggplot2)
+
+glimpse(df45_pro)
+table(df45_pro$eGFR_ab45)
+df45_pro_g <- df45_pro %>%
+  mutate(
+    eGFR_ab45 = as.character(eGFR_ab45)
+  )
+
+bld45_g <- ggplot(df45_pro_g) +
+  geom_bar(aes(x=he_ubld, fill=eGFR_ab45)
+           , position="fill", width = 0.5
+           ) +
+  scale_fill_manual(values=c("gray1","gray30", "gray55", "gray80")) +
+  xlab("Sex") +
+  ylab("Ratio") +
+  theme_light() +
+  theme(text = element_text(size = 15)) +
+  ggtitle("eGFR < 45")
+bld45_g
+```
+
+```{r correlation blood and ??}
+corr <- df45_pro[,c(10,1:9,11:13)]
+glimpse(corr)
+
+round(cor(corr),digits=3)
+
+cor.test(corr$male, corr$he_uph)
+
+
+library(corrplot)
+
+corrplot(cor(corr),
+         method = "number",
+         type = "upper"
+         )
+
+library(correlation)
+
+correlation(corr, 
+            include_factors = T, method="pearson")
+```

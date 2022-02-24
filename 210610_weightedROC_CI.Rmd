@@ -1,0 +1,304 @@
+---
+title: "pROC test in testset"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+#ref : https://www.r-bloggers.com/2019/08/how-to-get-an-auc-confidence-interval/
+```{r library and load dataset}
+
+library(dplyr)
+library(pROC)
+
+df_proc <- read.csv("/home/danssa/proj_ua/data/proc_testset_protein.csv", fileEncoding = "utf-8") %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  )
+glimpse(df_proc)
+```
+```{r cha60 ci.auc, ci.thresholds}
+
+#60 total delong
+print("60 both auc"); ci.auc(df_proc$eGFR_ab, df_proc$prob)
+
+#60 total bootstrap
+print("60 both auc"); ci.auc(df_proc$eGFR_ab, df_proc$prob, method="bootstrap")
+
+#60 non-proteinuria
+df_proc_np = filter(df_proc, he_upro<2)
+
+##auc delong
+print("60 non-proteinuria auc"); ci.auc(df_proc_np$eGFR_ab, df_proc_np$prob)
+
+##auc bootstrap
+print("60 non-proteinuria auc"); ci.auc(df_proc_np$eGFR_ab, df_proc_np$prob, method="bootstrap", boot.n=2000)
+
+##fixed threshold se, sp
+#print("60 non-proteinuria se, sp in best threshold"); ci.thresholds(roc(df_proc_np$eGFR_ab, df_proc_np$prob), thresholds = 0.425, conf.level = 0.95, boot.n=10000)
+
+##th, se, sp bootstrap
+(cha60_ci_np <- ci.coords(roc(df_proc_np$eGFR_ab, df_proc_np$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 2000))
+
+#60 proteinuria
+df_proc_p = filter(df_proc, he_upro>=2)
+
+##auc delong
+print("60 proteinuria auc"); ci.auc(df_proc_p$eGFR_ab, df_proc_p$prob)
+
+##auc bootstrap
+print("60 proteinuria auc"); ci.auc(df_proc_p$eGFR_ab, df_proc_p$prob, method="bootstrap", boot.n=2000)
+
+##fixed threshold se, sp
+#print("60 proteinuria se, sp in best threshold"); ci.thresholds(roc(df_proc_p$eGFR_ab, df_proc_p$prob), thresholds = 0.831, conf.level = 0.95, boot.n=10000)
+
+##th, se, sp bootstrap
+(cha60_p <- ci.coords(roc(df_proc_p$eGFR_ab, df_proc_p$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 2000))
+```
+
+```{r protein sensitivity, specificity}
+#make a paired dataset
+th_60_np = 0.425
+th_60_p = 0.831
+
+df_proc_np <- df_proc_np %>%
+  mutate(
+    pred = ifelse(prob>th_60_np, 1,0)
+  )
+
+df_proc_p <- df_proc_p %>%
+  mutate(
+    pred = ifelse(prob>th_60_p, 1,0)
+  )
+
+glimpse(df_proc_np)
+glimpse(df_proc_p)
+```
+
+```{r DTCompair, 60}
+#DTComPair
+library(DTComPair)
+
+a1 <- tab.1test(d=df_proc_np$eGFR_ab, y=df_proc_np$pred)
+a2 <- acc.1test(a1)
+print("60-non-proteinuria");a2
+
+a3 <- tab.1test(d=df_proc_p$eGFR_ab, y=df_proc_p$pred)
+a4 <- acc.1test(a3)
+print("60-proteinuria");a4
+```
+
+```{r pROC, 45}
+df_proc45 <- read.csv("/home/danssa/proj_ua/data/proc_testset_protein45.csv", fileEncoding = "utf-8") %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  )
+glimpse(df_proc45)
+
+#45 total
+print("45 both auc"); ci.auc(df_proc45$eGFR_ab45, df_proc45$prob)
+
+#45 non-proteinuria
+df_proc_np45 = filter(df_proc45, he_upro<2)
+
+##auc delong
+print("45 non-proteinuria auc"); ci.auc(df_proc_np45$eGFR_ab45, df_proc_np45$prob)
+
+##auc bootstrap
+print("45 non-proteinuria auc"); ci.auc(df_proc_np45$eGFR_ab45, df_proc_np45$prob, method="bootstrap", boot.n = 2000)
+
+##fixed threshold, se, sp
+#print("45 non-proteinuria se, sp in best threshold"); ci.thresholds(roc(df_proc_np45$eGFR_ab45, df_proc_np45$prob), thresholds = 0.295, conf.level = 0.95, boot.n=10000)
+
+##th, se, sp, bootstrap
+(cha45_ci_np <- ci.coords(roc(df_proc_np45$eGFR_ab45, df_proc_np45$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 2000))
+
+#45 proteinuria
+df_proc_p45 = filter(df_proc45, he_upro>=2)
+
+##auc delong
+print("45 proteinuria auc"); ci.auc(df_proc_p45$eGFR_ab45, df_proc_p45$prob)
+
+##auc bootstrap
+print("45 proteinuria auc"); ci.auc(df_proc_p45$eGFR_ab45, df_proc_p45$prob, method="bootstrap", boot.n = 2000)
+
+##fixed threshold, se, sp
+#print("45 proteinuria se, sp in best threshold"); ci.thresholds(roc(df_proc_p45$eGFR_ab45, df_proc_p45$prob), thresholds = 0.815, conf.level = 0.95, boot.n=100000)
+
+##th, se, sp, bootstrap
+(cha45_ci_p <- ci.coords(roc(df_proc_p45$eGFR_ab45, df_proc_p45$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n=2000))
+```
+
+```{r DTComPair}
+th_45_np = 0.295
+th_45_p = 0.815
+
+df_proc_np45 <- df_proc_np45 %>%
+  mutate(pred = ifelse(prob>th_45_np,1,0))
+
+df_proc_p45 <- df_proc_p45 %>%
+  mutate(pred = ifelse(prob>th_45_p,1,0))
+
+a1_45 <- tab.1test(d=df_proc_np45$eGFR_ab45, y=df_proc_np45$pred)
+a2_45 <- acc.1test(a1_45)
+print("45-non-proteinuria");a2_45
+
+a3_45 <- tab.1test(d=df_proc_p45$eGFR_ab45, y=df_proc_p45$pred)
+a4_45 <- acc.1test(a3_45)
+print("45-proteinuria");a4_45
+```
+
+```{r pROC, 60, KNHANES}
+df_proc_ev <- read.csv("/home/danssa/proj_ua/data/proc_testset_protein_ev.csv", fileEncoding = "utf-8") %>%
+  mutate(
+    wt_round=round(wt)
+    )
+glimpse(df_proc_ev)
+
+#test repeat row
+wt_ev <- df_proc_ev[rep(row.names(df_proc_ev), df_proc_ev$wt_round), ]
+
+#60 total KNHANES
+
+##1 real sample delong
+(kn60_auc_ci_rs <- ci.auc(df_proc_ev$eGFR_ab, df_proc_ev$prob))
+
+##2 copy sample delong
+(kn60_auc_ci <- ci.auc(wt_ev$eGFR_ab, wt_ev$prob))
+
+##3 copy sample bootstrap
+(kn60_auc_ci <- ci.auc(wt_ev$eGFR_ab, wt_ev$prob, method="bootstrap", boot.n=30))
+
+```
+
+```{r weighted roc test}
+library(WeightedROC)
+
+y <- df_proc_ev_np$eGFR_ab
+w <- df_proc_ev_np$wt_round
+y.hat <- df_proc_ev_np$prob
+
+tp.fp <- WeightedROC(y.hat, y, w)
+(wauc <- WeightedAUC(tp.fp))
+tp.fp <- tp.fp %>%
+  mutate(j = tp.fp$TPR - tp.fp$FPR)
+```
+
+```{r weighted roc test2}
+library(WeightedROC)
+
+kn_ci_test <- read.csv("~/proj_ua/data/kn_ci_test.csv", fileEncoding = "utf-8")
+  
+y <- kn_ci_test$eGFR_ab
+w <- kn_ci_test$wt
+y.hat <- kn_ci_test$prob
+
+tp.fp <- WeightedROC(y.hat, y, w)
+(wauc <- WeightedAUC(tp.fp))
+tp.fp <- tp.fp %>%
+  mutate(j = tp.fp$TPR - tp.fp$FPR)
+```
+
+```{r kn60 ci non-proteinuria}
+#60 non-proteinuria
+df_proc_ev_np <- df_proc_ev %>%
+  filter(he_upro<2)
+
+wt_ev_np = wt_ev %>%
+  filter(he_upro<2) %>%
+  select(eGFR_ab, prob)
+
+##kn60 np auc delong
+
+##1 real sample delong
+(kn60_auc_ci_np_rs <- ci.auc(df_proc_ev_np$eGFR_ab, df_proc_ev_np$prob))
+
+##2 copy sample delong
+(kn60_auc_ci_np_cs <- ci.auc(wt_ev_np$eGFR_ab, wt_ev_np$prob))
+
+##3 copy sample bootstrap
+(kn60_auc_ci_np_cs_bs <- ci.auc(wt_ev_np$eGFR_ab, wt_ev_np$prob, method="bootstrap", boot.n=30))
+
+##kn60 auc bootstrap
+(kn60_auc_ci_np_bs <- ci.auc(wt_ev_np$eGFR_ab, wt_ev_np$prob, method="bootstrap", boot.n=30))
+#kn60_sp_se_ci_np <- ci.thresholds(roc(wt_ev_np$eGFR_ab, wt_ev_np$prob), thresholds = 0.493, conf.level = 0.95, boot.n=2000)
+#print("60 non-proteinuria se, sp in best threshold"); kn60_sp_se_ci_np
+
+#threshold sensitivity specificity CI
+kn60_th_ci_np <- ci.coords(roc(wt_ev_np$eGFR_ab, wt_ev_np$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 30)
+print("60 non-proteinuria best threshold CI"); kn60_th_ci_np
+```
+
+```{r kn60 ci proteinuria}
+#60 non-proteinuria
+df_proc_ev_p <- df_proc_ev %>%
+  filter(he_upro>=2)
+
+wt_ev_p = wt_ev %>%
+  filter(he_upro>=2) %>%
+  select(eGFR_ab, prob)
+
+##kn 60 p auc
+
+##1 real sample delong
+(kn60_auc_ci_p_rs <- ci.auc(df_proc_ev_p$eGFR_ab, df_proc_ev_p$prob))
+
+##2 copy sample delong
+(kn60_auc_ci_p_cs <- ci.auc(wt_ev_p$eGFR_ab, wt_ev_p$prob))
+
+##3 copy sample bootstrap
+(kn60_auc_ci_p_cs_bs <- ci.auc(wt_ev_p$eGFR_ab, wt_ev_p$prob, method="bootstrap", boot.n=30))
+
+#kn60_sp_se_ci_p <- ci.thresholds(roc(wt_ev_p$eGFR_ab, wt_ev_p$prob), thresholds = 0.856, conf.level = 0.95, boot.n=2000)
+
+#print("60 proteinuria se, sp in best threshold"); kn60_sp_se_ci_p
+(kn60_th_ci_p <- ci.coords(roc(wt_ev_p$eGFR_ab, wt_ev_p$prob), x="best", best.method = "youden", ret=c("threshold", "sensitivity", "specificity"), boot.n = 30))
+```
+
+```{r pROC, 45, KNHANES}
+df_proc_ev45 <- read.csv("/home/danssa/proj_ua/data/proc_testset_protein_ev45.csv", fileEncoding = "utf-8") %>%
+  mutate(
+    eGFR_ab45=ifelse(eGFR_ckd<45,1,0),
+    wt_round=round(wt)
+    )
+glimpse(df_proc_ev45)
+
+#45 repeat row
+wt_ev45 <- df_proc_ev45[rep(row.names(df_proc_ev45), df_proc_ev45$wt_round), ]
+
+#45 total KNHANES
+kn45_auc_ci <- ci.auc(wt_ev45$eGFR_ab45, wt_ev45$prob)
+print("45 both auc"); kn45_auc_ci
+```
+
+```{r kn45 ci non-proteinuria}
+#45 non-proteinuria
+wt_ev_np45 = wt_ev45 %>%
+  filter(he_upro<2) %>%
+  select(eGFR_ab45, prob)
+
+(kn45_auc_ci_np <- ci.auc(wt_ev_np45$eGFR_ab45, wt_ev_np45$prob))
+#print("45 non-proteinuria auc"); kn45_auc_ci_np
+
+kn45_auc_ci_np <- ci.auc(wt_ev_np45$eGFR_ab45, wt_ev_np45$prob, method="bootstrap", boot.n=30)
+
+#threshold sensitivity specificity CI
+kn45_th_ci_np <- ci.coords(roc(wt_ev_np45$eGFR_ab45, wt_ev_np45$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 30)
+print("45 non-proteinuria best threshold CI"); kn45_th_ci_np
+```
+
+```{r kn45 ci proteinuria}
+#45 non-proteinuria
+wt_ev_p45 = wt_ev45 %>%
+  filter(he_upro>=2) %>%
+  select(eGFR_ab45, prob)
+
+(kn45_auc_ci_p <- ci.auc(wt_ev_p45$eGFR_ab45, wt_ev_p45$prob))
+print("45 proteinuria auc"); kn45_auc_ci_p
+
+(kn45_auc_ci_p <- ci.auc(wt_ev_p45$eGFR_ab45, wt_ev_p45$prob, method="bootstrap"))
+
+
+kn45_th_ci_p <- ci.coords(roc(wt_ev_p45$eGFR_ab45, wt_ev_p45$prob), x="best", ret=c("threshold", "sensitivity", "specificity"), boot.n = 30)
+print("45 proteinuria best threshold CI"); kn45_th_ci_p
+```

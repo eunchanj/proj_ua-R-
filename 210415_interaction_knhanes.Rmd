@@ -1,0 +1,71 @@
+---
+title: "Interaction age and protein KNHANES"
+output: html_notebook
+author: "chandler"
+date: "'r Sys.time()'"
+---
+
+
+```{r load dataset}
+library(dplyr)
+
+kn_wt <- read.csv("~/proj_ua/data/kn_ua_svy.csv", fileEncoding = "utf-8") %>%
+  filter(!is.na(wt_12y)) %>%
+  mutate(
+    male = ifelse(sex==1,1,0)
+  )
+
+glimpse(kn_wt)
+```
+
+```{r survey design}
+library(survey)
+kn_svy <- svydesign(data = kn_wt, id = ~psu+id_fam, strata = ~kstrata, weights = ~wt_12y)
+
+kn_svy_sub <- kn_svy %>%
+  subset(!is.na(he_crea)) %>%
+  subset(!is.na(he_uph)) %>%
+  subset(!is.na(he_unitr)) %>%
+  subset(!is.na(he_usg)) %>%
+  subset(!is.na(he_upro)) %>%
+  subset(!is.na(he_uglu)) %>%
+  subset(!is.na(he_uket)) %>%
+  subset(!is.na(he_ubil)) %>%
+  subset(!is.na(he_ubld)) %>%
+  subset(!is.na(he_uro)) %>%
+  subset(age>=18 & age<80)
+
+```
+
+```{r set data}
+shs <- kn_svy_sub
+
+table(shs$variables$he_upro)
+shs$variables$he_upro <- ifelse(shs$variables$he_upro<1,0,
+                                ifelse(shs$variables$he_upro>=1 & shs$variables$he_upro<3,1,2))
+table(shs$variables$he_upro)
+
+shs$variables$age <- ifelse(shs$variables$age<25, 21,
+                            ifelse(shs$variables$age>=25 & shs$variables$age<30, 27,
+                                   ifelse(shs$variables$age>=30 & shs$variables$age<35, 32,
+                                          ifelse(shs$variables$age>=35 & shs$variables$age<40, 37,
+                                                 ifelse(shs$variables$age>=40 & shs$variables$age<45, 42,
+                                                        ifelse(shs$variables$age>=45 & shs$variables$age<50, 47,
+                                                               ifelse(shs$variables$age>=50 & shs$variables$age<55, 52,
+                                                                      ifelse(shs$variables$age>=55 & shs$variables$age<60, 57,
+                                                                             ifelse(shs$variables$age>=60 & shs$variables$age<65, 62,
+                                                                                    ifelse(shs$variables$age>=65 & shs$variables$age<70, 67,
+                                                                                           ifelse(shs$variables$age>=70 & shs$variables$age<75, 72, 77)))))))))))
+bys <- svyby(~eGFR_ab, ~age+he_upro, svymean, design=shs)
+```
+
+```{r plot graph}
+library(Hmisc)
+plot(svysmooth(eGFR_ab*100~age, design=subset(shs,he_upro==0), bandwidth = 5), xlim=c(18,80), ylim=c(0,100),ylab = "eGFR<60, Prevalence(%)")
+minor.tick(nx=10, ny=10)
+lines(svysmooth(eGFR_ab*100~age, design=subset(shs,he_upro==1), bandwidth = 5), lwd=2,lty=3)
+lines(svysmooth(eGFR_ab*100~age, design=subset(shs,he_upro==2), bandwidth = 5), lwd=1,lty=1)
+points(bys$age, bys$eGFR_ab*100, pch=ifelse(bys$he_upro==0,19,
+                                        ifelse(bys$he_upro==1,1,2)))
+legend("topleft", pch=c(19,1,2),lty=c(1,3),lwd=c(1,2),legend=c("proteinuria=0", "proteinuria=1,2", "proteinuria=3,4,5"),bty="n")
+```

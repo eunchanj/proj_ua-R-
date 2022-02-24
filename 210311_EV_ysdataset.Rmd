@@ -1,0 +1,149 @@
+---
+title: "EV yonsei dataset"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+
+ys <- read_excel("~/proj_ua/data/ys_raw.xlsx")
+glimpse(ys)
+
+ys_sel <- ys %>%
+  select(연구등록번호, 성별, 수치결과, 처방시나이,
+               `Glucose[Random Urine](B0010B01)문자결과`, `Nitrite[Random Urine](B009001)문자결과`,`Urobilinogen[Random Urine](B0010D01)문자결과`, `Protein(Albumin)[Random Urine](B0010A01)문자결과`, `Bilirubin[Random Urine](B0010E01)문자결과`, `Ketone[Random Urine](B0010C01)문자결과`, `Blood(Heme)[Random Urine](B0010F01)문자결과`, `pH[Random Urine](B001001)수치결과_1`, `Specific Gravity[Random Urine](B0010G01)수치결과_1`, `Leukocyte esterase[Random Urine](B005001)문자결과`) %>%
+  rename(
+    "id" = 연구등록번호,
+    "crea" = 수치결과,
+    "sex" = 성별,
+    "age" = 처방시나이,
+    "he_uph" = `pH[Random Urine](B001001)수치결과_1`,
+    "he_unitr" = `Nitrite[Random Urine](B009001)문자결과`,
+    "he_usg" = `Specific Gravity[Random Urine](B0010G01)수치결과_1`,
+    "he_upro" = `Protein(Albumin)[Random Urine](B0010A01)문자결과`,
+    "he_uglu" = `Glucose[Random Urine](B0010B01)문자결과`,
+    "he_uket" = `Ketone[Random Urine](B0010C01)문자결과`,
+    "he_ubil" = `Bilirubin[Random Urine](B0010E01)문자결과`,
+    "he_ubld" = `Blood(Heme)[Random Urine](B0010F01)문자결과`,
+    "he_uro" = `Urobilinogen[Random Urine](B0010D01)문자결과`,
+    "leucocyte" = `Leukocyte esterase[Random Urine](B005001)문자결과`
+  ) %>%
+  unique()
+glimpse(ys_sel)
+```
+
+```{r exploratory ysdataset}
+#ys
+for(i in 2:length(ys_sel)) {
+  print(colnames(ys_sel[i]))
+  print(table(ys_sel[,i], exclude = F))
+}
+```
+```{r transforming format}
+library(stringr)
+
+ys_sel_tf <- ys_sel %>%
+  filter(!(is.na(sex) | is.na(age) | is.na(crea) |
+             is.na(he_uglu) | is.na(he_ubld) | is.na(he_unitr) | is.na(he_uro) | is.na(he_upro) | 
+             is.na(he_ubil) | is.na(he_uket) | is.na(leucocyte) | is.na(he_uph) | is.na(he_usg))) %>%
+  filter(he_uro != ">=8.0") %>%
+  filter(he_usg != "1621278278.000")
+length(which(is.na(ys_sel_tf$he_unitr)))
+
+for(i in 2:length(ys_sel_tf)) {
+  print(colnames(ys_sel_tf[i]))
+  print(table(ys_sel_tf[,i], exclude = F))
+}
+```
+
+```{r transforming format2}
+ys_sel_tfc <- ys_sel_tf %>%
+  mutate(
+    ##
+    he_uglu = ifelse(he_uglu=="Negative" | he_uglu=="-",0,
+                     ifelse(he_uglu=="Trace" | he_uglu=="+/-",1,
+                            ifelse(he_uglu=="1+",2,
+                                   ifelse(he_uglu=="2+",3,
+                                          ifelse(he_uglu=="3+",4,5))))),
+    ##
+    he_unitr = ifelse(he_unitr=="Negative" | he_unitr=="-",0,1),
+    ##
+    he_upro = ifelse(he_upro=="Negative" | he_upro=="-",0,
+                     ifelse(he_upro=="Trace" | he_upro=="+/-",1,
+                            ifelse(he_upro=="1+",2,
+                                   ifelse(he_upro=="2+",3,
+                                          ifelse(he_upro=="3+",4,5))))),
+    ##
+    he_ubil = ifelse(he_ubil=="Negative" | he_ubil=="-",0,
+                     ifelse(he_ubil=="Trace" | he_ubil=="+/-",1,
+                            ifelse(he_ubil=="1+",2,
+                                   ifelse(he_ubil=="2+",3,
+                                          ifelse(he_ubil=="3+",4,5))))),
+    ##
+    he_uket = ifelse(he_uket=="Negative" | he_uket=="-",0,
+                     ifelse(he_uket=="Trace" | he_uket=="+/-",1,
+                            ifelse(he_uket=="1+",2,
+                                   ifelse(he_uket=="2+",3,
+                                          ifelse(he_uket=="3+",4,5))))),
+    ##
+    he_ubld = ifelse(he_ubld=="Negative" | he_ubld=="-",0,
+                     ifelse(he_ubld=="Trace" | he_ubld=="TRACE" | he_ubld=="+/-",1,
+                            ifelse(he_ubld=="1+",2,
+                                   ifelse(he_ubld=="2+",3,
+                                          ifelse(he_ubld=="3+",4,5))))),
+    ##
+    he_uph = as.numeric(ifelse(he_uph==">=9.0",9.0, he_uph)),
+    ##
+    he_usg = as.numeric(gsub("[[:punct:]]","", he_usg)),
+    he_usg = ifelse(he_usg<=1007, 1.005, 
+                    ifelse(he_usg>=1008 & he_usg<=1012, 1.010,
+                           ifelse(he_usg>=1013 & he_usg<=1017, 1.015,
+                                  ifelse(he_usg>=1018 & he_usg<=1022, 1.020,
+                                         ifelse(he_usg>=1023 & he_usg<=1027, 1.025, 1.030))))),
+    ##
+    leucocyte = ifelse(leucocyte=="Negative" | leucocyte=="-",0,
+                     ifelse(leucocyte=="Trace" | leucocyte=="+/-",1,
+                            ifelse(leucocyte=="1+",2,
+                                   ifelse(leucocyte=="2+",3,
+                                          ifelse(leucocyte=="3+",4,5))))),
+    ##
+    he_uro = ifelse(he_uro=="-",0,
+                     ifelse(he_uro=="+/-(0.1)" | he_uro=="+/-(0.2)",1,
+                            ifelse(he_uro=="1+(1.0)" | he_uro=="1+(16)",2,
+                                   ifelse(he_uro=="2+(2.0)" | he_uro=="2+(4.0)" | he_uro=="2+(66)",3,
+                                          ifelse(he_uro=="3+(4.0)" | he_uro=="3+(8.0)",4,5))))),
+    ##
+    male = ifelse(sex=="M",1,0),
+    ##
+    crea = as.numeric(crea),
+    ##
+    age = as.numeric(age),
+    ##
+    eGFR_ckd = ifelse(male == 1, ifelse(crea <= 0.9, 141*((crea/0.9)^-0.411)*0.993^age,
+                                                             141*((crea/0.9)^-1.209)*0.993^age),
+                            ifelse(crea <=0.7, 144*((crea/0.7)^-0.329)*0.993^age,
+                                                  144*((crea/0.7)^-1.209)*0.993^age)),
+    eGFR_ab = ifelse(eGFR_ckd<60,1,0),
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  ) %>%
+  select(-c(sex,crea))
+
+
+glimpse(ys_sel_tfc)
+```
+```{r}
+for(i in 2:13) {
+  print(colnames(ys_sel_tfc[i]))
+  print(table(ys_sel_tfc[,i], exclude = F))
+}
+```
+
+```{r save as csv file}
+df_ys <- ys_sel_tfc[,c(1,13,2:12,14:16)]
+glimpse(df_ys)
+
+length(which(is.na(df_ys)))
+summary(df_ys)
+#write.csv(df_ys, "~/proj_ua/data/ev_ys.csv", fileEncoding = "utf-8", row.names = F)
+```

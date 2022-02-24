@@ -1,0 +1,62 @@
+---
+title: "logistic regression CHA dataset new just internal validation data"
+output: html_notebook
+author: "chandler"
+date: "`r Sys.time()`"
+---
+
+
+```{r load dataset and clean dataset}
+df <- read.csv("~/proj_ua/data/df_logistic_cha_new.v1.csv")
+glimpse(df)
+
+df_glm <- df %>%
+  mutate(
+    ab=ifelse(eGFR_ckd<60, 1, 0)
+  ) %>%
+  select(-eGFR_ckd)
+glimpse(df_glm)
+```
+```{r glm}
+glm <- glm(ab ~., family=binomial, data=df_glm)
+summary(glm)
+
+library(gtsummary)
+tbl_regression(glm, exponentiate = TRUE)
+```
+```{r glm interaction}
+glm2 <- glm(ab ~ age + male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte + he_unitr +
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+            family=binomial, data=df_glm)
+summary(glm2)
+```
+
+```{r OR table}
+tbl_regression(glm2, exponentiate = TRUE)
+```
+
+```{r 45model}
+df45 <- read.csv("~/proj_ua/data/df_logistic_cha45_new.v1.csv")
+df45 <- df45 %>%
+  mutate(
+    eGFR_ab45 = ifelse(eGFR_ckd<45,1,0)
+  ) %>%
+  select(!eGFR_ckd)
+glimpse(df45)
+```
+
+```{r 45model glm}
+glm45 <- glm(eGFR_ab45 ~., family=binomial, data=df45)
+summary(glm45)
+
+tbl_regression(glm45, exponentiate = TRUE)
+```
+
+```{r 45model glm interaction term}
+glm2_45 <- glm(eGFR_ab45 ~ age + male + he_uph + he_usg +he_upro +he_uglu + he_uket +he_ubil +he_ubld +he_uro +leucocyte + he_unitr +
+             age*male + age*male + age*he_uph + age*he_usg + age*he_upro + age*he_uglu + age*he_uket + age*he_ubil + age*he_ubld + age*he_uro + age*leucocyte, 
+            family=binomial, data=df45)
+summary(glm2_45)
+
+tbl_regression(glm2_45, exponentiate = TRUE)
+```
